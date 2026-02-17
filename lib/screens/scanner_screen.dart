@@ -25,9 +25,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   // Sample history data
   final List<Map<String, dynamic>> scanHistory = [
-    {'code': '9780201379624', 'type': 'ISBN', 'date': '2024-01-15 10:30 AM'},
-    {'code': '5901234123457', 'type': 'EAN-13', 'date': '2024-01-15 09:15 AM'},
-    {'code': '123456789012', 'type': 'CODE128', 'date': '2024-01-14 04:45 PM'},
+    {'code': '9780201379624', 'type': 'ISBN', 'date': '2024-01-15 10:30 AM', 'product': 'Design Patterns Book'},
+    {'code': '5901234123457', 'type': 'EAN-13', 'date': '2024-01-15 09:15 AM', 'product': 'Milk Chocolate'},
+    {'code': '123456789012', 'type': 'CODE128', 'date': '2024-01-14 04:45 PM', 'product': 'Shipping Label'},
   ];
 
   @override
@@ -65,13 +65,22 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     try {
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        // Process the image for barcode scanning
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Processing image for barcode...')),
         );
-        // Here you would implement barcode detection from image
-        // For now, we'll just show a message
-        Navigator.pop(context, 'Scanned from image: ${image.path}');
+        // Simulate scanning from image
+        Future.delayed(const Duration(seconds: 1), () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ScanResultScreen(
+                barcodeData: '5901234123457',
+                format: 'EAN-13',
+                imagePath: image.path,
+              ),
+            ),
+          );
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,14 +90,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   }
 
   void shareApp() {
-    // Implement app sharing functionality
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Share app dialog would open here')),
     );
   }
 
   void openSettings() {
-    // Navigate to settings screen
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Settings screen would open here')),
     );
@@ -110,15 +117,22 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                   if (barcodes.isNotEmpty) {
                     final String? code = barcodes.first.rawValue;
                     if (code != null) {
-                      // Add to history
-                      setState(() {
-                        scanHistory.insert(0, {
-                          'code': code,
-                          'type': barcodes.first.format.name,
-                          'date': DateTime.now().toString().substring(0, 19),
-                        });
+                      // Stop scanning
+                      controller.stop();
+
+                      // Navigate to result screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ScanResultScreen(
+                            barcodeData: code,
+                            format: barcodes.first.format.name,
+                          ),
+                        ),
+                      ).then((_) {
+                        // Resume scanning when returning from result screen
+                        controller.start();
                       });
-                      Navigator.pop(context, code);
                     }
                   }
                 },
@@ -300,10 +314,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                     _buildActionButton(
                       icon: Icons.history,
                       label: "History",
-                      onTap: () {
-                        // Show history in sidebar or navigate
-                        toggleSidebar();
-                      },
+                      onTap: toggleSidebar,
                     ),
                     _buildActionButton(
                       icon: Icons.share,
@@ -451,8 +462,19 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                               },
                             ),
                             onTap: () {
-                              // Show scan details
-                              Navigator.pop(context, item['code']);
+                              toggleSidebar();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ScanResultScreen(
+                                    barcodeData: item['code'],
+                                    format: item['type'],
+                                    productName: item['product'],
+                                  ),
+                                ),
+                              ).then((_) {
+                                controller.start();
+                              });
                             },
                           ),
                         );
@@ -569,6 +591,579 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   }
 }
 
+// Scan Result Screen
+class ScanResultScreen extends StatefulWidget {
+  final String barcodeData;
+  final String format;
+  final String? imagePath;
+  final String? productName;
+
+  const ScanResultScreen({
+    Key? key,
+    required this.barcodeData,
+    required this.format,
+    this.imagePath,
+    this.productName,
+  }) : super(key: key);
+
+  @override
+  State<ScanResultScreen> createState() => _ScanResultScreenState();
+}
+
+class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  bool isFavorite = false;
+
+  // Sample product data (in real app, fetch from API)
+  Map<String, dynamic> get productInfo {
+    return {
+      'name': widget.productName ?? 'Premium Product',
+      'brand': 'Sample Brand',
+      'price': '\$29.99',
+      'description': 'This is a high-quality product with excellent features. Perfect for daily use.',
+      'rating': 4.5,
+      'reviews': 128,
+      'inStock': true,
+      'category': 'Electronics',
+      'manufacturer': 'Sample Manufacturing Co.',
+      'country': 'USA',
+    };
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue.shade50, Colors.white],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // App Bar
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.3),
+                              blurRadius: 5,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.arrow_back, color: Colors.blue),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    Text(
+                      'Scan Result',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: isFavorite ? Colors.red : Colors.blue,
+                            ),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              isFavorite = !isFavorite;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isFavorite ? 'Added to favorites' : 'Removed from favorites'),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.share, color: Colors.blue),
+                          ),
+                          onPressed: _shareResult,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Barcode Display Card
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.2),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Icon based on format
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        widget.format.contains('QR') ? Icons.qr_code : Icons.qr_code_scanner,
+                        size: 40,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Barcode Data
+                    Text(
+                      widget.barcodeData,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Format and timestamp
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            widget.format,
+                            style: TextStyle(
+                              color: Colors.blue.shade800,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getCurrentTime(),
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Barcode visualization (simulated)
+                    if (!widget.format.contains('QR')) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: CustomPaint(
+                          painter: BarcodePainter(data: widget.barcodeData),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Tab Bar
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.blue.shade700,
+                  unselectedLabelColor: Colors.grey,
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    color: Colors.blue.shade50,
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: 'Details'),
+                    Tab(text: 'Info'),
+                    Tab(text: 'Actions'),
+                  ],
+                ),
+              ),
+
+              // Tab Content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildDetailsTab(),
+                    _buildInfoTab(),
+                    _buildActionsTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailsTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _buildInfoCard(
+          icon: Icons.shopping_bag,
+          title: 'Product Name',
+          value: productInfo['name'],
+        ),
+        _buildInfoCard(
+          icon: Icons.branding_watermark,
+          title: 'Brand',
+          value: productInfo['brand'],
+        ),
+        _buildInfoCard(
+          icon: Icons.attach_money,
+          title: 'Price',
+          value: productInfo['price'],
+        ),
+        _buildInfoCard(
+          icon: Icons.star,
+          title: 'Rating',
+          value: '${productInfo['rating']} (${productInfo['reviews']} reviews)',
+        ),
+        _buildInfoCard(
+          icon: Icons.inventory,
+          title: 'Availability',
+          value: productInfo['inStock'] ? 'In Stock' : 'Out of Stock',
+          valueColor: productInfo['inStock'] ? Colors.green : Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const SizedBox(height: 8),
+        _buildInfoCard(
+          icon: Icons.description,
+          title: 'Description',
+          value: productInfo['description'],
+          multiline: true,
+        ),
+        _buildInfoCard(
+          icon: Icons.category,
+          title: 'Category',
+          value: productInfo['category'],
+        ),
+        _buildInfoCard(
+          icon: Icons.factory,
+          title: 'Manufacturer',
+          value: productInfo['manufacturer'],
+        ),
+        _buildInfoCard(
+          icon: Icons.public,
+          title: 'Country of Origin',
+          value: productInfo['country'],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionsTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const SizedBox(height: 8),
+        _buildActionButton(
+          icon: Icons.shopping_cart,
+          label: 'Add to Cart',
+          color: Colors.blue,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Added to cart')),
+            );
+          },
+        ),
+        _buildActionButton(
+          icon: Icons.search,
+          label: 'Search Online',
+          color: Colors.green,
+          onTap: _searchOnline,
+        ),
+        _buildActionButton(
+          icon: Icons.copy,
+          label: 'Copy Code',
+          color: Colors.orange,
+          onTap: _copyToClipboard,
+        ),
+        _buildActionButton(
+          icon: Icons.share,
+          label: 'Share Code',
+          color: Colors.purple,
+          onTap: _shareResult,
+        ),
+        _buildActionButton(
+          icon: Icons.compare_arrows,
+          label: 'Compare Prices',
+          color: Colors.teal,
+          onTap: _comparePrices,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    Color? valueColor,
+    bool multiline = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 5,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.blue.shade700, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: valueColor ?? Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color.withOpacity(0.1),
+          foregroundColor: color,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getCurrentTime() {
+    final now = DateTime.now();
+    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _copyToClipboard() {
+    // In real app, use Clipboard.setData
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied: ${widget.barcodeData}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _shareResult() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Share dialog would open here')),
+    );
+  }
+
+  void _searchOnline() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Searching online for: ${widget.barcodeData}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _comparePrices() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Price comparison would open here')),
+    );
+  }
+}
+
+// Custom painter for barcode visualization
+class BarcodePainter extends CustomPainter {
+  final String data;
+
+  BarcodePainter({required this.data});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 2;
+
+    final double barWidth = size.width / data.length;
+
+    for (int i = 0; i < data.length; i++) {
+      final int digit = int.tryParse(data[i]) ?? 0;
+      final double x = i * barWidth;
+
+      // Draw bars based on digit (simplified)
+      for (int j = 0; j <= digit % 4; j++) {
+        final double barX = x + (j * 3);
+        if (barX < size.width) {
+          canvas.drawLine(
+            Offset(barX, 0),
+            Offset(barX, size.height),
+            paint..strokeWidth = 2,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
 class _CornerMarker extends StatelessWidget {
   final Alignment alignment;
   final double rotation;
@@ -645,7 +1240,7 @@ class _AnimatedScanLineState extends State<_AnimatedScanLine>
       animation: _animation,
       builder: (context, child) {
         return Positioned(
-          top: MediaQuery.of(context).size.height * _animation.value,
+          top: MediaQuery.of(context).size.height * _animation.value - 200,
           left: 25,
           right: 25,
           child: Container(
@@ -683,20 +1278,16 @@ class ScannerOverlayPainter extends CustomPainter {
       ..color = Colors.black.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
-    // Create a dark overlay with a cutout for the scanner area
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Calculate scanner area (centered square)
     final double scannerSize = size.width * 0.7;
     final double left = (size.width - scannerSize) / 2;
     final double top = (size.height - scannerSize) / 2;
 
-    // Create cutout path
     final cutoutPath = Path()
       ..addRect(Rect.fromLTWH(left, top, scannerSize, scannerSize));
 
-    // Subtract cutout from overlay
     final overlayPath = Path.combine(
       PathOperation.difference,
       path,
@@ -705,7 +1296,6 @@ class ScannerOverlayPainter extends CustomPainter {
 
     canvas.drawPath(overlayPath, paint);
 
-    // Draw rounded rectangle outline around scanner area
     final outlinePaint = Paint()
       ..color = Colors.white.withOpacity(0.5)
       ..style = PaintingStyle.stroke
