@@ -18,7 +18,7 @@ class ScanResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isUrl = Uri.tryParse(barcodeData)?.hasAbsolutePath ?? false;
+    final isUrl = _isValidUrl(barcodeData);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,7 +68,7 @@ class ScanResultScreen extends StatelessWidget {
                       isUrl
                           ? InkWell(
                         onTap: () async {
-                          final url = Uri.parse(barcodeData);
+                          final url = _prepareUrl(barcodeData);
                           if (await canLaunchUrl(url)) {
                             await launchUrl(url, mode: LaunchMode.externalApplication);
                           } else {
@@ -173,5 +173,21 @@ class ScanResultScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Validate URL
+  bool _isValidUrl(String text) {
+    final uri = Uri.tryParse(text);
+    return uri != null &&
+        (uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https') ||
+            (!uri.hasScheme && text.contains('.'))); // also allow "www.example.com"
+  }
+
+  // Ensure URL has scheme
+  Uri _prepareUrl(String text) {
+    if (!text.startsWith('http://') && !text.startsWith('https://')) {
+      return Uri.parse('https://$text');
+    }
+    return Uri.parse(text);
   }
 }
