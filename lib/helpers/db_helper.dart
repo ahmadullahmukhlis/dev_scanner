@@ -48,4 +48,18 @@ class DBHelper {
     );
     return List.generate(maps.length, (i) => ScanHistoryModel.fromMap(maps[i]));
   }
+  Future<int> deleteScan(ScanHistoryModel scan) async {
+    final db = await database;
+    return await db.delete(
+      'scan_history',
+      where: 'code = ? AND date = ?',
+      whereArgs: [scan.code, scan.date],
+    );
+  }
+
+  Future<int> clearScans() async {
+    final db = await database;
+    return await db.delete('scan_history');
+  }
+
 }
