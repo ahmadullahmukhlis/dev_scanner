@@ -68,17 +68,20 @@ class ScanResultScreen extends StatelessWidget {
                       isUrl
                           ? InkWell(
                         onTap: () async {
-                          final url = _prepareUrl(barcodeData);
-                          if (await canLaunchUrl(url)) {
-                            await launchUrl(
-                              url,
-                              mode: LaunchMode.platformDefault, // safer for Android
-                            );
-                          } else {
-                            _showSnackBar(context, 'Cannot open URL');
+                          final urlString = barcodeData.trim();
+                          final url = urlString.startsWith('http://') || urlString.startsWith('https://')
+                              ? Uri.parse(urlString)
+                              : Uri.parse('https://$urlString');
+
+                          // Attempt to launch
+                          try {
+                            if (!await launchUrl(url, mode: LaunchMode.platformDefault)) {
+                              _showSnackBar(context, 'Cannot open URL');
+                            }
+                          } catch (e) {
+                            _showSnackBar(context, 'Error opening URL');
                           }
                         },
-
                         child: Text(
                           barcodeData,
                           style: const TextStyle(
