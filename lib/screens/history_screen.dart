@@ -14,7 +14,7 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan History'),
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -67,93 +67,129 @@ class HistoryScreen extends StatelessWidget {
       itemCount: scanHistory.length,
       itemBuilder: (context, index) {
         final item = scanHistory[index];
+
+        final String code = item['code']?.toString() ?? 'Unknown Code';
+        final String product =
+            item['product']?.toString() ?? 'Unknown Product';
+        final String type = item['type']?.toString() ?? 'Unknown';
+        final String date = item['date']?.toString() ?? '';
+
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          elevation: 2,
+          margin: const EdgeInsets.only(bottom: 10),
+          elevation: 3,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(12),
+
+            // ICON
             leading: Container(
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: _getTypeColor(item['type']).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: _getTypeColor(type).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                _getTypeIcon(item['type']),
-                color: _getTypeColor(item['type']),
-                size: 30,
+                _getTypeIcon(type),
+                color: _getTypeColor(type),
+                size: 28,
               ),
             ),
+
+            // TITLE
             title: Text(
-              item['code'],
+              code,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
+
+            // SUBTITLE
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
+
                 Text(
-                  item['product'] ?? 'Unknown Product',
+                  product,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.grey.shade700,
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
+
+                const SizedBox(height: 6),
+
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _getTypeColor(item['type']).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        item['type'],
-                        style: TextStyle(
-                          color: _getTypeColor(item['type']),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:
+                          _getTypeColor(type).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          type,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _getTypeColor(type),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Icon(
                       Icons.access_time,
                       size: 12,
                       color: Colors.grey.shade500,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      item['date'],
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 10,
+                    Expanded(
+                      child: Text(
+                        date,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
+
+            // DELETE BUTTON
             trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.grey),
-              onPressed: () => _showDeleteDialog(context, index),
+              icon:
+              const Icon(Icons.delete_outline, color: Colors.grey),
+              onPressed: () =>
+                  _showDeleteDialog(context, index),
             ),
+
+            // OPEN RESULT
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ScanResultScreen(
-                    barcodeData: item['code'],
-                    format: item['type'],
-                    productName: item['product'],
+                    barcodeData: code,
+                    format: type,
+                    productName: product,
                   ),
                 ),
               );
@@ -169,7 +205,8 @@ class HistoryScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear History'),
-        content: const Text('Are you sure you want to clear all scan history?'),
+        content: const Text(
+            'Are you sure you want to clear all scan history?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -182,7 +219,10 @@ class HistoryScreen extends StatelessWidget {
                 const SnackBar(content: Text('History cleared')),
               );
             },
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Clear',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -194,7 +234,8 @@ class HistoryScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this item?'),
+        content: const Text(
+            'Are you sure you want to delete this item?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -207,7 +248,10 @@ class HistoryScreen extends StatelessWidget {
                 const SnackBar(content: Text('Item deleted')),
               );
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -215,18 +259,20 @@ class HistoryScreen extends StatelessWidget {
   }
 
   IconData _getTypeIcon(String type) {
-    if (type.contains('QR')) {
+    if (type.toUpperCase().contains('QR')) {
       return Icons.qr_code;
     }
     return Icons.qr_code_scanner;
   }
 
   Color _getTypeColor(String type) {
-    if (type.contains('QR')) {
+    final upper = type.toUpperCase();
+
+    if (upper.contains('QR')) {
       return Colors.purple;
-    } else if (type.contains('ISBN')) {
+    } else if (upper.contains('ISBN')) {
       return Colors.green;
-    } else if (type.contains('EAN')) {
+    } else if (upper.contains('EAN')) {
       return Colors.orange;
     }
     return Colors.blue;
