@@ -18,7 +18,8 @@ class ScanResultScreen extends StatefulWidget {
   State<ScanResultScreen> createState() => _ScanResultScreenState();
 }
 
-class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerProviderStateMixin {
+class _ScanResultScreenState extends State<ScanResultScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool isFavorite = false;
   bool isSaved = false;
@@ -42,111 +43,120 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverAppBar(
-              expandedHeight: 280,
+              expandedHeight: 340, // Increased height to fit content
               floating: false,
               pinned: true,
               backgroundColor: Colors.blue.shade700,
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [Color(0xFF1976D2), Color(0xFF7B1FA2)],
                     ),
                   ),
                   child: SafeArea(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 60),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            widget.format.contains('QR') ? Icons.qr_code : Icons.qr_code_scanner,
-                            size: 50,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            widget.barcodeData,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
+                    child: SingleChildScrollView( // Prevent overflow
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 60),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
                             ),
-                            textAlign: TextAlign.center,
+                            child: Icon(
+                              widget.format.contains('QR')
+                                  ? Icons.qr_code
+                                  : Icons.qr_code_scanner,
+                              size: 50,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              widget.barcodeData,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
                               ),
-                              child: Text(
-                                widget.format,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  widget.format,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _getCurrentTime(),
                                 style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white70,
                                   fontSize: 12,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _getCurrentTime(),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildActionChip(
-                                icon: Icons.copy,
-                                label: 'Copy',
-                                onTap: _copyToClipboard,
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActionChip(
-                                icon: Icons.share,
-                                label: 'Share',
-                                onTap: _shareResult,
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActionChip(
-                                icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-                                label: 'Save',
-                                onTap: () {
-                                  setState(() {
-                                    isFavorite = !isFavorite;
-                                    isSaved = !isSaved;
-                                  });
-                                  _showSnackBar(isSaved ? 'Saved to collection' : 'Removed from collection');
-                                },
-                              ),
                             ],
                           ),
-                        ),
-                      ],
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildActionChip(
+                                  icon: Icons.copy,
+                                  label: 'Copy',
+                                  onTap: _copyToClipboard,
+                                ),
+                                const SizedBox(width: 12),
+                                _buildActionChip(
+                                  icon: Icons.share,
+                                  label: 'Share',
+                                  onTap: _shareResult,
+                                ),
+                                const SizedBox(width: 12),
+                                _buildActionChip(
+                                  icon: isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  label: 'Save',
+                                  onTap: () {
+                                    setState(() {
+                                      isFavorite = !isFavorite;
+                                      isSaved = !isSaved;
+                                    });
+                                    _showSnackBar(isSaved
+                                        ? 'Saved to collection'
+                                        : 'Removed from collection');
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -264,7 +274,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
         _buildInfoCard(
           icon: Icons.description,
           title: 'Description',
-          value: 'This is a sample product description. In a real app, this would be fetched from a database or API based on the barcode.',
+          value:
+          'This is a sample product description. In a real app, this would be fetched from a database or API based on the barcode.',
           multiline: true,
         ),
         _buildInfoCard(
@@ -323,7 +334,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
             setState(() {
               isSaved = !isSaved;
             });
-            _showSnackBar(isSaved ? 'Saved to collection' : 'Removed from collection');
+            _showSnackBar(
+                isSaved ? 'Saved to collection' : 'Removed from collection');
           },
         ),
         _buildActionButton(
@@ -358,7 +370,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
         ],
       ),
       child: Row(
-        crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment:
+        multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
@@ -489,7 +502,5 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return false;
-  }
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
 }
