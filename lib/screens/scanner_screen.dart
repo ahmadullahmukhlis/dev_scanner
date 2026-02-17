@@ -135,10 +135,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           const SnackBar(content: Text('Processing image for barcode...')),
         );
 
-        // Simulate barcode detection from image
-        // In a real app, you would use a barcode detection library here
         Future.delayed(const Duration(seconds: 1), () async {
-          final mockCode = '5901234123457';
+          final mockCode = '';
           final mockType = 'EAN-13';
 
           // Save to database
