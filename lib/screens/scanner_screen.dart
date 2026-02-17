@@ -449,7 +449,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           children: [
             const SizedBox(height: 40),
             _buildSidebarMenu(),
-            _buildSidebarFooter(),
+
           ],
         ),
       ),
@@ -481,38 +481,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
             onTap: () => navigateTo(item['page']),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildSidebarFooter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildSidebarFooterItem(
-            icon: Icons.logout,
-            label: 'Logout',
-            color: Colors.red,
-          ),
-          _buildSidebarFooterItem(
-            icon: Icons.info,
-            label: 'About',
-            color: Colors.blue,
-          ),
-          _buildSidebarFooterItem(
-            icon: Icons.privacy_tip,
-            label: 'Privacy',
-            color: Colors.green,
-          ),
-        ],
       ),
     );
   }
