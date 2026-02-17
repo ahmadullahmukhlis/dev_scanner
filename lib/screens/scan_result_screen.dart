@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ScanResultScreen extends StatelessWidget {
   final String barcodeData;
@@ -16,6 +18,8 @@ class ScanResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isUrl = Uri.tryParse(barcodeData)?.hasAbsolutePath ?? false;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Result'),
@@ -26,7 +30,6 @@ class ScanResultScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-
       ),
       body: Container(
         color: Colors.grey.shade50,
@@ -36,8 +39,6 @@ class ScanResultScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-
-
                 // QR/Barcode Data Card
                 Container(
                   width: double.infinity,
@@ -63,7 +64,30 @@ class ScanResultScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      SelectableText(
+                      // Make clickable if URL
+                      isUrl
+                          ? InkWell(
+                        onTap: () async {
+                          final url = Uri.parse(barcodeData);
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                          } else {
+                            _showSnackBar(context, 'Cannot open URL');
+                          }
+                        },
+                        child: Text(
+                          barcodeData,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                            decoration: TextDecoration.underline,
+                            letterSpacing: 1,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                          : SelectableText(
                         barcodeData,
                         style: const TextStyle(
                           fontSize: 22,
@@ -134,6 +158,7 @@ class ScanResultScreen extends StatelessWidget {
   }
 
   void _copyToClipboard(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: barcodeData));
     _showSnackBar(context, 'Copied: $barcodeData');
   }
 
