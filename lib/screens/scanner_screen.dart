@@ -1,76 +1,506 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
-class BarcodeScannerScreen extends StatelessWidget {
+class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
 
   @override
+  State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
+}
+
+class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with SingleTickerProviderStateMixin {
+  final MobileScannerController controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    facing: CameraFacing.back,
+    torchEnabled: false,
+  );
+
+  bool isSidebarOpen = false;
+  double zoomLevel = 1.0;
+  late AnimationController _sidebarController;
+  late Animation<double> _sidebarAnimation;
+  final ImagePicker _imagePicker = ImagePicker();
+
+  // Sample history data
+  final List<Map<String, dynamic>> scanHistory = [
+    {'code': '9780201379624', 'type': 'ISBN', 'date': '2024-01-15 10:30 AM'},
+    {'code': '5901234123457', 'type': 'EAN-13', 'date': '2024-01-15 09:15 AM'},
+    {'code': '123456789012', 'type': 'CODE128', 'date': '2024-01-14 04:45 PM'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _sidebarController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _sidebarAnimation = CurvedAnimation(
+      parent: _sidebarController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    _sidebarController.dispose();
+    super.dispose();
+  }
+
+  void toggleSidebar() {
+    setState(() {
+      isSidebarOpen = !isSidebarOpen;
+      if (isSidebarOpen) {
+        _sidebarController.forward();
+      } else {
+        _sidebarController.reverse();
+      }
+    });
+  }
+
+  Future<void> pickImageFromGallery() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        // Process the image for barcode scanning
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Processing image for barcode...')),
+        );
+        // Here you would implement barcode detection from image
+        // For now, we'll just show a message
+        Navigator.pop(context, 'Scanned from image: ${image.path}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  void shareApp() {
+    // Implement app sharing functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Share app dialog would open here')),
+    );
+  }
+
+  void openSettings() {
+    // Navigate to settings screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Settings screen would open here')),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-
-      title: "AfPay",
-      subtitle: "Scan Barcode",
-      currentIndex: 1,
-      child: Stack(
+    return Scaffold(
+      body: Stack(
         children: [
-          // Scanner with custom overlay
-          MobileScanner(
-            controller: MobileScannerController(
-              detectionSpeed: DetectionSpeed.noDuplicates,
-              facing: CameraFacing.back,
-              torchEnabled: false,
-            ),
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final String? code = barcodes.first.rawValue;
-                if (code != null) {
-                  Navigator.pop(context, code);
-                }
-              }
-            },
-          ),
+          // Main Scanner Content
+          Stack(
+            children: [
+              // Scanner with custom overlay
+              MobileScanner(
+                controller: controller,
+                onDetect: (capture) {
+                  final List<Barcode> barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
+                    final String? code = barcodes.first.rawValue;
+                    if (code != null) {
+                      // Add to history
+                      setState(() {
+                        scanHistory.insert(0, {
+                          'code': code,
+                          'type': barcodes.first.format.name,
+                          'date': DateTime.now().toString().substring(0, 19),
+                        });
+                      });
+                      Navigator.pop(context, code);
+                    }
+                  }
+                },
+              ),
 
-          // Scanner overlay with scan area
-          CustomPaint(
-            painter: ScannerOverlayPainter(),
-            child: Container(),
-          ),
-          // Animated scan line
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: Center(
-                child: SizedBox(
-                  width: 250,
-                  height: 250,
-                  child: Stack(
+              // Scanner overlay with scan area
+              CustomPaint(
+                painter: ScannerOverlayPainter(),
+                child: Container(),
+              ),
+
+              // Animated scan line
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: Center(
+                    child: SizedBox(
+                      width: 250,
+                      height: 250,
+                      child: Stack(
+                        children: [
+                          _CornerMarker(
+                            alignment: Alignment.topLeft,
+                            rotation: 0,
+                          ),
+                          _CornerMarker(
+                            alignment: Alignment.topRight,
+                            rotation: 90,
+                          ),
+                          _CornerMarker(
+                            alignment: Alignment.bottomLeft,
+                            rotation: 270,
+                          ),
+                          _CornerMarker(
+                            alignment: Alignment.bottomRight,
+                            rotation: 180,
+                          ),
+                          _AnimatedScanLine(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Top Bar with Sidebar Toggle
+              Positioned(
+                top: 40,
+                left: 16,
+                right: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Sidebar Toggle Button
+                    GestureDetector(
+                      onTap: toggleSidebar,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.menu,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+
+                    // Title
+                    Column(
+                      children: [
+                        const Text(
+                          'AfPay',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Scan Barcode',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Settings Button
+                    GestureDetector(
+                      onTap: openSettings,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.settings,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Zoom Control
+              Positioned(
+                right: 20,
+                top: MediaQuery.of(context).size.height / 2 - 100,
+                child: Container(
+                  width: 40,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Corner markers
-                      _CornerMarker(
-                        alignment: Alignment.topLeft,
-                        rotation: 0,
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            zoomLevel = (zoomLevel + 0.5).clamp(1.0, 3.0);
+                            controller.setZoomScale(zoomLevel);
+                          });
+                        },
+                        child: const Icon(
+                          Icons.zoom_in,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
-                      _CornerMarker(
-                        alignment: Alignment.topRight,
-                        rotation: 90,
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          '${zoomLevel.toStringAsFixed(1)}x',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      _CornerMarker(
-                        alignment: Alignment.bottomLeft,
-                        rotation: 270,
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            zoomLevel = (zoomLevel - 0.5).clamp(1.0, 3.0);
+                            controller.setZoomScale(zoomLevel);
+                          });
+                        },
+                        child: const Icon(
+                          Icons.zoom_out,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
-                      _CornerMarker(
-                        alignment: Alignment.bottomRight,
-                        rotation: 180,
-                      ),
-                      // Animated scan line
-                      _AnimatedScanLine(),
                     ],
                   ),
                 ),
               ),
+
+              // Bottom Action Buttons
+              Positioned(
+                bottom: 40,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildActionButton(
+                      icon: Icons.photo_library,
+                      label: "Upload",
+                      onTap: pickImageFromGallery,
+                    ),
+                    _buildActionButton(
+                      icon: Icons.history,
+                      label: "History",
+                      onTap: () {
+                        // Show history in sidebar or navigate
+                        toggleSidebar();
+                      },
+                    ),
+                    _buildActionButton(
+                      icon: Icons.share,
+                      label: "Share App",
+                      onTap: shareApp,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Sidebar (History Panel)
+          if (isSidebarOpen)
+            GestureDetector(
+              onTap: toggleSidebar,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+              ),
+            ),
+
+          // Animated Sidebar
+          AnimatedBuilder(
+            animation: _sidebarAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  -MediaQuery.of(context).size.width * (1 - _sidebarAnimation.value),
+                  0,
+                ),
+                child: child,
+              );
+            },
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Sidebar Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade700, Colors.purple.shade700],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.white,
+                          child: Icon(
+                            Icons.qr_code_scanner,
+                            size: 30,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Scan History',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Your recent scans',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // History List
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: scanHistory.length,
+                      itemBuilder: (context, index) {
+                        final item = scanHistory[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.qr_code,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                            title: Text(
+                              item['code'],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${item['type']} • ${item['date']}',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () {
+                                setState(() {
+                                  scanHistory.removeAt(index);
+                                });
+                              },
+                            ),
+                            onTap: () {
+                              // Show scan details
+                              Navigator.pop(context, item['code']);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Sidebar Footer
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: const BorderRadius.only(
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildSidebarAction(
+                          icon: Icons.share,
+                          label: 'Share',
+                          onTap: shareApp,
+                        ),
+                        _buildSidebarAction(
+                          icon: Icons.settings,
+                          label: 'Settings',
+                          onTap: openSettings,
+                        ),
+                        _buildSidebarAction(
+                          icon: Icons.clear_all,
+                          label: 'Clear',
+                          onTap: () {
+                            setState(() {
+                              scanHistory.clear();
+                            });
+                            toggleSidebar();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
-
+      ),
     );
   }
 
@@ -82,11 +512,12 @@ class BarcodeScannerScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.black.withOpacity(0.6),
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white.withOpacity(0.4),
@@ -106,6 +537,30 @@ class BarcodeScannerScreen extends StatelessWidget {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.blue.shade700, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              fontSize: 12,
             ),
           ),
         ],
