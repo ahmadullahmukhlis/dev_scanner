@@ -1,7 +1,6 @@
 import 'package:dev_scanner/models/scan_history_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'scan_history_model.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
