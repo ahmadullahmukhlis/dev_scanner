@@ -70,11 +70,15 @@ class ScanResultScreen extends StatelessWidget {
                         onTap: () async {
                           final url = _prepareUrl(barcodeData);
                           if (await canLaunchUrl(url)) {
-                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.platformDefault, // safer for Android
+                            );
                           } else {
                             _showSnackBar(context, 'Cannot open URL');
                           }
                         },
+
                         child: Text(
                           barcodeData,
                           style: const TextStyle(
