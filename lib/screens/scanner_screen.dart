@@ -9,7 +9,8 @@ import 'help_screen.dart';
 import '../widgets/corner_marker.dart';
 import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
-import '../utils/constants.dart';
+import '../utils/db_helper.dart';
+import '../models/scan_history_model.dart';
 import 'dart:io';
 
 class BarcodeScannerScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   late AnimationController _sidebarController;
   late Animation<double> _sidebarAnimation;
   final ImagePicker _imagePicker = ImagePicker();
+  final DBHelper _dbHelper = DBHelper();
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
@@ -39,12 +41,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
     {'icon': Icons.help, 'title': 'Help', 'page': 'help'},
     {'icon': Icons.share, 'title': 'Share App', 'page': 'share'},
-  ];
-
-  final List<Map<String, dynamic>> scanHistory = [
-    {'code': '9780201379624', 'type': 'ISBN', 'date': '2024-01-15 10:30 AM', 'product': 'Design Patterns Book'},
-    {'code': '5901234123457', 'type': 'EAN-13', 'date': '2024-01-15 09:15 AM', 'product': 'Milk Chocolate'},
-    {'code': '123456789012', 'type': 'CODE128', 'date': '2024-01-14 04:45 PM', 'product': 'Shipping Label'},
   ];
 
   @override
@@ -85,11 +81,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => HistoryScreen(
-            scanHistory: scanHistory,
-          ),
+          builder: (context) => const HistoryScreen(),
         ),
-      );
+      ).then((_) {
+        // Refresh when returning from history
+        setState(() {});
+      });
     } else if (page == 'settings') {
       Navigator.push(
         context,
@@ -120,6 +117,16 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     }
   }
 
+  Future<void> _saveScanToHistory(String code, String type) async {
+    final scan = ScanHistoryModel(
+      code: code,
+      type: type,
+      date: _getCurrentDateTime(),
+      product: 'Product ${await _dbHelper.getScanCount() + 1}',
+    );
+    await _dbHelper.insertScan(scan);
+  }
+
   Future<void> pickImageFromGallery() async {
     try {
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
@@ -127,25 +134,38 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Processing image for barcode...')),
         );
-        Future.delayed(const Duration(seconds: 1), () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ScanResultScreen(
-                barcodeData: '5901234123457',
-                format: 'EAN-13',
-                imagePath: image.path,
+
+        // Simulate barcode detection from image
+        // In a real app, you would use a barcode detection library here
+        Future.delayed(const Duration(seconds: 1), () async {
+          final mockCode = '5901234123457';
+          final mockType = 'EAN-13';
+
+          // Save to database
+          await _saveScanToHistory(mockCode, mockType);
+
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScanResultScreen(
+                  barcodeData: mockCode,
+                  format: mockType,
+                  imagePath: image.path,
+                ),
               ),
-            ),
-          ).then((_) {
-            controller.start();
-          });
+            ).then((_) {
+              controller.start();
+            });
+          }
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
     }
   }
 
@@ -176,29 +196,29 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
       children: [
         MobileScanner(
           controller: controller,
-          onDetect: (capture) {
+          onDetect: (capture) async {
             final List<Barcode> barcodes = capture.barcodes;
             if (barcodes.isNotEmpty) {
               final String? code = barcodes.first.rawValue;
               if (code != null) {
                 controller.stop();
-                scanHistory.insert(0, {
-                  'code': code,
-                  'type': barcodes.first.format.name,
-                  'date': _getCurrentDateTime(),
-                  'product': 'Product ${scanHistory.length + 1}',
-                });
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ScanResultScreen(
-                      barcodeData: code,
-                      format: barcodes.first.format.name,
+
+                // Save to database
+                await _saveScanToHistory(code, barcodes.first.format.name);
+
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ScanResultScreen(
+                        barcodeData: code,
+                        format: barcodes.first.format.name,
+                      ),
                     ),
-                  ),
-                ).then((_) {
-                  controller.start();
-                });
+                  ).then((_) {
+                    controller.start();
+                  });
+                }
               }
             }
           },
@@ -431,13 +451,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           children: [
             const SizedBox(height: 40),
             _buildSidebarMenu(),
-
+            _buildSidebarFooter(),
           ],
         ),
       ),
     );
   }
-
 
   Widget _buildSidebarMenu() {
     return Expanded(
@@ -468,6 +487,37 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     );
   }
 
+  Widget _buildSidebarFooter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildSidebarFooterItem(
+            icon: Icons.logout,
+            label: 'Logout',
+            color: Colors.red,
+          ),
+          _buildSidebarFooterItem(
+            icon: Icons.info,
+            label: 'About',
+            color: Colors.blue,
+          ),
+          _buildSidebarFooterItem(
+            icon: Icons.privacy_tip,
+            label: 'Privacy',
+            color: Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildSidebarFooterItem({
     required IconData icon,
