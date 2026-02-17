@@ -1,3 +1,4 @@
+import 'package:dev_scanner/screens/scanner_screen.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -15,7 +16,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-      // home: const "home page ",
+      home: const BarcodeScannerScreen(),
     );
   }
 }
