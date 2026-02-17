@@ -12,7 +12,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   mobile_scanner: ^7.1.4
   image_picker: ^1.2.1
-  flutter_lints: ^6.0.0
+  flutter_lints: ^3.0.0
   share_plus: ^12.0.1
   sqflite: ^2.4.2
   path: ^1.9.1
@@ -23,12 +23,17 @@ dev_dependencies:
     sdk: flutter
   flutter_launcher_icons: ^0.14.4
 
-# Configuration for flutter_launcher_icons (top-level, not nested)
-flutter_icons:
-  android: true
+# Configuration to maximize the icon size
+flutter_launcher_icons:
+  android: "launcher_icon"
   ios: true
   image_path: "assets/logo.png"
-  adaptive_icon_foreground_inset: 20
+  # Reducing inset to 0 makes it fill the 200dp safe zone completely
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo.png"
+  # Force high-res generation
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
