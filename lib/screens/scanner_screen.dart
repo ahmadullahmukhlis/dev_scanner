@@ -9,6 +9,7 @@ import 'help_screen.dart';
 import '../widgets/corner_marker.dart';
 import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
+import '../utils/constants.dart';
 import 'dart:io';
 
 class BarcodeScannerScreen extends StatefulWidget {
@@ -18,34 +19,42 @@ class BarcodeScannerScreen extends StatefulWidget {
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
 }
 
-class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
-    with SingleTickerProviderStateMixin {
+class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with SingleTickerProviderStateMixin {
   final MobileScannerController controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
 
-  final ImagePicker _imagePicker = ImagePicker();
-
   bool isSidebarOpen = false;
-  bool isProcessing = false; // 🔥 prevents duplicate navigation
   double zoomLevel = 1.0;
-
   late AnimationController _sidebarController;
   late Animation<double> _sidebarAnimation;
+  final ImagePicker _imagePicker = ImagePicker();
 
-  final List<Map<String, dynamic>> scanHistory = [];
+  final List<Map<String, dynamic>> menuItems = [
+    {'icon': Icons.home, 'title': 'Home', 'page': 'home'},
+    {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
+    {'icon': Icons.history, 'title': 'History', 'page': 'history'},
+    {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
+    {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
+    {'icon': Icons.help, 'title': 'Help', 'page': 'help'},
+    {'icon': Icons.share, 'title': 'Share App', 'page': 'share'},
+  ];
+
+  final List<Map<String, dynamic>> scanHistory = [
+    {'code': '9780201379624', 'type': 'ISBN', 'date': '2024-01-15 10:30 AM', 'product': 'Design Patterns Book'},
+    {'code': '5901234123457', 'type': 'EAN-13', 'date': '2024-01-15 09:15 AM', 'product': 'Milk Chocolate'},
+    {'code': '123456789012', 'type': 'CODE128', 'date': '2024-01-14 04:45 PM', 'product': 'Shipping Label'},
+  ];
 
   @override
   void initState() {
     super.initState();
-
     _sidebarController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-
     _sidebarAnimation = CurvedAnimation(
       parent: _sidebarController,
       curve: Curves.easeInOut,
@@ -62,102 +71,103 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   void toggleSidebar() {
     setState(() {
       isSidebarOpen = !isSidebarOpen;
-      isSidebarOpen
-          ? _sidebarController.forward()
-          : _sidebarController.reverse();
+      if (isSidebarOpen) {
+        _sidebarController.forward();
+      } else {
+        _sidebarController.reverse();
+      }
     });
   }
 
-  Future<void> pickImageFromGallery() async {
-    try {
-      final XFile? image =
-      await _imagePicker.pickImage(source: ImageSource.gallery);
+  void navigateTo(String page) {
+    toggleSidebar();
 
-      if (!mounted) return;
-
-      if (image != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Processing image...')),
-        );
-
-        await controller.stop();
-
-        if (!mounted) return;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ScanResultScreen(
-              barcodeData: "Detected from image",
-              format: "IMAGE",
-              imagePath: image.path,
-            ),
+    if (page == 'history') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HistoryScreen(
+            scanHistory: scanHistory,
           ),
-        ).then((_) async {
-          if (mounted) {
-            await controller.start();
-          }
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
+        ),
+      );
+    } else if (page == 'settings') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsScreen(),
+        ),
+      );
+    } else if (page == 'saved') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SavedScreen(),
+        ),
+      );
+    } else if (page == 'help') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HelpScreen(),
+        ),
+      );
+    } else if (page == 'share') {
+      _shareApp();
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Navigating to $page')),
       );
     }
   }
 
-  void _handleDetection(BarcodeCapture capture) async {
-    if (isProcessing) return;
-
-    final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isEmpty) return;
-
-    final String? code = barcodes.first.rawValue;
-    if (code == null) return;
-
-    isProcessing = true;
-
-    await controller.stop();
-
-    scanHistory.insert(0, {
-      'code': code,
-      'type': barcodes.first.format.name,
-      'date': _getCurrentDateTime(),
-    });
-
-    if (!mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ScanResultScreen(
-          barcodeData: code,
-          format: barcodes.first.format.name,
-        ),
-      ),
-    ).then((_) async {
-      isProcessing = false;
-      if (mounted) {
-        await controller.start();
+  Future<void> pickImageFromGallery() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Processing image for barcode...')),
+        );
+        Future.delayed(const Duration(seconds: 1), () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ScanResultScreen(
+                barcodeData: '5901234123457',
+                format: 'EAN-13',
+                imagePath: image.path,
+              ),
+            ),
+          ).then((_) {
+            controller.start();
+          });
+        });
       }
-    });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  void _shareApp() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Share app dialog would open here')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            _buildScanner(),
-            _buildTopBar(),
-            _buildZoomControl(),
-            _buildBottomButtons(),
-            if (isSidebarOpen) _buildSidebarOverlay(),
-            _buildSidebar(),
-          ],
-        ),
+      body: Stack(
+        children: [
+          _buildScanner(),
+          _buildTopBar(),
+          _buildZoomControl(),
+          _buildBottomButtons(),
+          if (isSidebarOpen) _buildSidebarOverlay(),
+          _buildSidebar(),
+        ],
       ),
     );
   }
@@ -167,14 +177,37 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       children: [
         MobileScanner(
           controller: controller,
-          onDetect: _handleDetection,
+          onDetect: (capture) {
+            final List<Barcode> barcodes = capture.barcodes;
+            if (barcodes.isNotEmpty) {
+              final String? code = barcodes.first.rawValue;
+              if (code != null) {
+                controller.stop();
+                scanHistory.insert(0, {
+                  'code': code,
+                  'type': barcodes.first.format.name,
+                  'date': _getCurrentDateTime(),
+                  'product': 'Product ${scanHistory.length + 1}',
+                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ScanResultScreen(
+                      barcodeData: code,
+                      format: barcodes.first.format.name,
+                    ),
+                  ),
+                ).then((_) {
+                  controller.start();
+                });
+              }
+            }
+          },
         ),
-
         CustomPaint(
           painter: ScannerOverlayPainter(),
           child: Container(),
         ),
-
         const Positioned.fill(
           child: IgnorePointer(
             child: Center(
@@ -200,16 +233,26 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
 
   Widget _buildTopBar() {
     return Positioned(
-      top: 16,
+      top: 40,
       left: 16,
       right: 16,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _circleButton(Icons.menu, toggleSidebar),
-          const Column(
+          GestureDetector(
+            onTap: toggleSidebar,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.menu, color: Colors.white, size: 24),
+            ),
+          ),
+          Column(
             children: [
-              Text(
+              const Text(
                 'AfPay',
                 style: TextStyle(
                   color: Colors.white,
@@ -219,11 +262,24 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
               ),
               Text(
                 'Scan Barcode',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                ),
               ),
             ],
           ),
-          _circleButton(Icons.settings, () {}),
+          GestureDetector(
+            onTap: () => navigateTo('settings'),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.settings, color: Colors.white, size: 24),
+            ),
+          ),
         ],
       ),
     );
@@ -243,25 +299,33 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            IconButton(
-              icon: const Icon(Icons.zoom_in, color: Colors.white),
-              onPressed: () {
-                zoomLevel = (zoomLevel + 0.5).clamp(1.0, 3.0);
-                controller.setZoomScale(zoomLevel);
-                setState(() {});
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  zoomLevel = (zoomLevel + 0.5).clamp(1.0, 3.0);
+                  controller.setZoomScale(zoomLevel);
+                });
               },
+              child: const Icon(Icons.zoom_in, color: Colors.white, size: 24),
             ),
-            Text(
-              '${zoomLevel.toStringAsFixed(1)}x',
-              style: const TextStyle(color: Colors.white),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                '${zoomLevel.toStringAsFixed(1)}x',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.zoom_out, color: Colors.white),
-              onPressed: () {
-                zoomLevel = (zoomLevel - 0.5).clamp(1.0, 3.0);
-                controller.setZoomScale(zoomLevel);
-                setState(() {});
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  zoomLevel = (zoomLevel - 0.5).clamp(1.0, 3.0);
+                  controller.setZoomScale(zoomLevel);
+                });
               },
+              child: const Icon(Icons.zoom_out, color: Colors.white, size: 24),
             ),
           ],
         ),
@@ -271,58 +335,74 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
 
   Widget _buildBottomButtons() {
     return Positioned(
-      bottom: 30,
+      bottom: 40,
       left: 0,
       right: 0,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _actionButton(Icons.photo_library, "Upload", pickImageFromGallery),
-          _actionButton(Icons.history, "History", () {}),
-          _actionButton(Icons.share, "Share", () {}),
+          _buildActionButton(
+            icon: Icons.photo_library,
+            label: "Upload",
+            onTap: pickImageFromGallery,
+          ),
+          _buildActionButton(
+            icon: Icons.history,
+            label: "History",
+            onTap: () => navigateTo('history'),
+          ),
+          _buildActionButton(
+            icon: Icons.share,
+            label: "Share App",
+            onTap: _shareApp,
+          ),
         ],
       ),
     );
   }
 
-  Widget _circleButton(IconData icon, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white),
-        onPressed: onTap,
-      ),
-    );
-  }
-
-  Widget _actionButton(
-      IconData icon, String label, VoidCallback onTap) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.6),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.4),
+                width: 1,
+              ),
             ),
-            child: Icon(icon, color: Colors.white),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(color: Colors.white)),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildSidebarOverlay() {
     return GestureDetector(
       onTap: toggleSidebar,
-      child: Container(color: Colors.black54),
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+      ),
     );
   }
 
@@ -332,8 +412,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(
-            -MediaQuery.of(context).size.width *
-                (1 - _sidebarAnimation.value),
+            -MediaQuery.of(context).size.width * (1 - _sidebarAnimation.value),
             0,
           ),
           child: child,
@@ -342,13 +421,160 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       child: Container(
         width: MediaQuery.of(context).size.width * 0.75,
         height: double.infinity,
-        color: Colors.white,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildSidebarHeader(),
+            _buildSidebarMenu(),
+            _buildSidebarFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1976D2), Color(0xFF7B1FA2)],
+        ),
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.person, size: 35, color: Colors.blue.shade700),
+          ),
+          const SizedBox(width: 15),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'John Doe',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'john.doe@email.com',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarMenu() {
+    return Expanded(
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        itemCount: menuItems.length,
+        itemBuilder: (context, index) {
+          final item = menuItems[index];
+          return ListTile(
+            leading: Icon(
+              item['icon'],
+              color: index == 1 ? Colors.blue.shade700 : Colors.grey.shade600,
+            ),
+            title: Text(
+              item['title'],
+              style: TextStyle(
+                color: index == 1 ? Colors.blue.shade700 : Colors.black87,
+                fontWeight: index == 1 ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            trailing: item['page'] == 'share'
+                ? const Icon(Icons.open_in_new, size: 16, color: Colors.grey)
+                : null,
+            onTap: () => navigateTo(item['page']),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSidebarFooter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildSidebarFooterItem(
+            icon: Icons.logout,
+            label: 'Logout',
+            color: Colors.red,
+          ),
+          _buildSidebarFooterItem(
+            icon: Icons.info,
+            label: 'About',
+            color: Colors.blue,
+          ),
+          _buildSidebarFooterItem(
+            icon: Icons.privacy_tip,
+            label: 'Privacy',
+            color: Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarFooterItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label tapped')),
+        );
+      },
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 10,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   String _getCurrentDateTime() {
     final now = DateTime.now();
-    return '${now.year}-${now.month}-${now.day} ${now.hour}:${now.minute}';
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
   }
 }
