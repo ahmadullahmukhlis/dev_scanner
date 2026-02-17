@@ -33,7 +33,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   final ImagePicker _imagePicker = ImagePicker();
 
   final List<Map<String, dynamic>> menuItems = [
-    {'icon': Icons.home, 'title': 'Home', 'page': 'home'},
     {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
     {'icon': Icons.history, 'title': 'History', 'page': 'history'},
     {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
@@ -430,7 +429,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
         ),
         child: Column(
           children: [
-            _buildSidebarHeader(),
+            const SizedBox(height: 40),
             _buildSidebarMenu(),
             _buildSidebarFooter(),
           ],
@@ -439,51 +438,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     );
   }
 
-  Widget _buildSidebarHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1976D2), Color(0xFF7B1FA2)],
-        ),
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, size: 35, color: Colors.blue.shade700),
-          ),
-          const SizedBox(width: 15),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'John Doe',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'john.doe@email.com',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSidebarMenu() {
     return Expanded(
@@ -495,13 +449,13 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           return ListTile(
             leading: Icon(
               item['icon'],
-              color: index == 1 ? Colors.blue.shade700 : Colors.grey.shade600,
+              color: index == 0 ? Colors.blue.shade700 : Colors.grey.shade600,
             ),
             title: Text(
               item['title'],
               style: TextStyle(
-                color: index == 1 ? Colors.blue.shade700 : Colors.black87,
-                fontWeight: index == 1 ? FontWeight.bold : FontWeight.normal,
+                color: index == 0 ? Colors.blue.shade700 : Colors.black87,
+                fontWeight: index == 0 ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             trailing: item['page'] == 'share'
