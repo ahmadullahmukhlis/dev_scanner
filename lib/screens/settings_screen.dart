@@ -239,27 +239,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) async {
     final selected = await showModalBottomSheet<T>(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final maxHeight = constraints.maxHeight * 0.8;
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: options
+                            .map(
+                              (option) => ListTile(
+                                title: Text(option.label),
+                                trailing: option.value == current ? const Icon(Icons.check, color: Colors.blue) : null,
+                                onTap: () => Navigator.pop(context, option.value),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
-              ),
-              ...options.map(
-                (option) => ListTile(
-                  title: Text(option.label),
-                  trailing: option.value == current ? const Icon(Icons.check, color: Colors.blue) : null,
-                  onTap: () => Navigator.pop(context, option.value),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
+              );
+            },
           ),
         );
       },
