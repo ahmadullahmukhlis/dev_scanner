@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/common_app_bar.dart';
+import '../utils/constants.dart';
 
 class ScanResultScreen extends StatelessWidget {
   final String barcodeData;
@@ -21,11 +23,8 @@ class ScanResultScreen extends StatelessWidget {
     final isUrl = _isValidUrl(barcodeData);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan Result'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: buildCommonAppBar(
+        title: AppConstants.appName,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),

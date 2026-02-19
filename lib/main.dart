@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       animation: AppSettings.instance,
       builder: (context, _) {
         return MaterialApp(
-          title: 'AfPay Scanner',
+          title: 'Dev Scanner',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             primarySwatch: Colors.blue,

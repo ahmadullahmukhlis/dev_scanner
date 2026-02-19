@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_settings.dart';
+import '../utils/constants.dart';
+import '../widgets/common_app_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -14,11 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-      ),
+      appBar: buildCommonAppBar(title: AppConstants.appName),
       body: AnimatedBuilder(
         animation: _settings,
         builder: (context, _) {
@@ -144,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     '1.0.0',
                     onTap: () => _showInfoDialog(
                       title: 'Version',
-                      message: 'AfPay Scanner version 1.0.0',
+                      message: '${AppConstants.appName} version 1.0.0',
                     ),
                   ),
                   _buildSettingsTile(

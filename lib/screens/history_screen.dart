@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:dev_scanner/utils/db_helper.dart';
 import 'package:dev_scanner/models/scan_history_model.dart';
 import 'scan_result_screen.dart';
+import '../widgets/common_app_bar.dart';
+import '../utils/constants.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -160,11 +162,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan History'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: buildCommonAppBar(
+        title: AppConstants.appName,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep),
@@ -183,12 +182,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 prefixIcon: const Icon(Icons.search, color: Colors.white),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.white),
-                  onPressed: () {
-                    _searchController.clear();
-                    _searchHistory('');
-                  },
-                )
+                        icon: const Icon(Icons.clear, color: Colors.white),
+                        onPressed: () {
+                          _searchController.clear();
+                          _searchHistory('');
+                        },
+                      )
                     : null,
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.2),

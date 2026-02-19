@@ -1,6 +1,6 @@
 {
-    "name": "dev_scanner",
-    "short_name": "dev_scanner",
+    "name": "Dev Scanner",
+    "short_name": "Dev Scanner",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

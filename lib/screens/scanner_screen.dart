@@ -12,8 +12,10 @@ import '../widgets/scanner_overlay_painter.dart';
 import '../utils/db_helper.dart';
 import '../models/scan_history_model.dart';
 import '../utils/app_settings.dart';
+import '../utils/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/common_app_bar.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
@@ -235,10 +237,22 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: buildCommonAppBar(
+        title: AppConstants.appName,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: toggleSidebar,
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => navigateTo('settings'),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           _buildScanner(),
-          _buildTopBar(),
           _buildZoomControl(),
           _buildBottomButtons(),
           if (isSidebarOpen) _buildSidebarOverlay(),
@@ -313,60 +327,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Positioned(
-      top: 40,
-      left: 16,
-      right: 16,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: toggleSidebar,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.menu, color: Colors.white, size: 24),
-            ),
-          ),
-          Column(
-            children: [
-              const Text(
-                'AfPay',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Scan Barcode',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          GestureDetector(
-            onTap: () => navigateTo('settings'),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.settings, color: Colors.white, size: 24),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
