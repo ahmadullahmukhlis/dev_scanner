@@ -18,6 +18,7 @@ class AppSettings extends ChangeNotifier {
   static const String _keyScanSpeed = 'scan_speed';
   static const String _keyVibration = 'vibration_enabled';
   static const String _keySound = 'sound_enabled';
+  static const String _keyAutoOpenUrl = 'auto_open_url';
   static const String _keyLanguage = 'language';
   static const String _keyTheme = 'theme';
   static const String _keyNotifications = 'notifications_enabled';
@@ -29,6 +30,7 @@ class AppSettings extends ChangeNotifier {
   ScanSpeedSetting scanSpeed = ScanSpeedSetting.normal;
   bool vibrationEnabled = true;
   bool soundEnabled = true;
+  bool autoOpenUrl = true;
   String language = 'English';
   AppThemeSetting theme = AppThemeSetting.system;
   bool notificationsEnabled = true;
@@ -40,6 +42,7 @@ class AppSettings extends ChangeNotifier {
     scanSpeed = _readEnum(_keyScanSpeed, ScanSpeedSetting.values, ScanSpeedSetting.normal);
     vibrationEnabled = _prefs?.getBool(_keyVibration) ?? true;
     soundEnabled = _prefs?.getBool(_keySound) ?? true;
+    autoOpenUrl = _prefs?.getBool(_keyAutoOpenUrl) ?? true;
     language = _prefs?.getString(_keyLanguage) ?? 'English';
     theme = _readEnum(_keyTheme, AppThemeSetting.values, AppThemeSetting.system);
     notificationsEnabled = _prefs?.getBool(_keyNotifications) ?? true;
@@ -82,6 +85,12 @@ class AppSettings extends ChangeNotifier {
   Future<void> setSoundEnabled(bool value) async {
     soundEnabled = value;
     await _prefs?.setBool(_keySound, value);
+    notifyListeners();
+  }
+
+  Future<void> setAutoOpenUrl(bool value) async {
+    autoOpenUrl = value;
+    await _prefs?.setBool(_keyAutoOpenUrl, value);
     notifyListeners();
   }
 

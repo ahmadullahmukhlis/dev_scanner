@@ -84,6 +84,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _settings.soundEnabled,
                     onChanged: _settings.setSoundEnabled,
                   ),
+                  _buildSwitchTile(
+                    Icons.link,
+                    'Open URLs',
+                    'Open URLs immediately after scan',
+                    value: _settings.autoOpenUrl,
+                    onChanged: _settings.setAutoOpenUrl,
+                  ),
                 ],
               ),
               _buildSettingsSection(

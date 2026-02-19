@@ -13,6 +13,7 @@ import '../utils/db_helper.dart';
 import '../models/scan_history_model.dart';
 import '../utils/app_settings.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
@@ -168,6 +169,22 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     }
   }
 
+  bool _isValidUrl(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null) return false;
+    return uri.hasScheme && (uri.isScheme('http') || uri.isScheme('https')) && uri.host.isNotEmpty;
+  }
+
+  Future<void> _openUrl(String value) async {
+    final uri = Uri.parse(value.trim());
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open the URL')),
+      );
+    }
+  }
+
   Future<void> pickImageFromGallery() async {
     try {
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
@@ -248,17 +265,25 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                 await _saveScanToHistory(code, barcodes.first.format.name);
 
                 if (mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ScanResultScreen(
-                        barcodeData: code,
-                        format: barcodes.first.format.name,
+                  if (_settings.autoOpenUrl && _isValidUrl(code)) {
+                    await _openUrl(code);
+                    if (mounted) {
+                      await Future.delayed(const Duration(milliseconds: 600));
+                      controller.start();
+                    }
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ScanResultScreen(
+                          barcodeData: code,
+                          format: barcodes.first.format.name,
+                        ),
                       ),
-                    ),
-                  ).then((_) {
-                    controller.start();
-                  });
+                    ).then((_) {
+                      controller.start();
+                    });
+                  }
                 }
               }
             }
