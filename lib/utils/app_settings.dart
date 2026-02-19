@@ -24,6 +24,8 @@ class AppSettings extends ChangeNotifier {
   static const String _keyTheme = 'theme';
   static const String _keyNotifications = 'notifications_enabled';
   static const String _keyAppBarColor = 'app_bar_color';
+  static const String _keyCustomLogicEnabled = 'custom_logic_enabled';
+  static const String _keyCustomLogicJson = 'custom_logic_json';
 
   SharedPreferences? _prefs;
 
@@ -37,6 +39,8 @@ class AppSettings extends ChangeNotifier {
   AppThemeSetting theme = AppThemeSetting.system;
   bool notificationsEnabled = true;
   AppBarColorSetting appBarColorSetting = AppBarColorSetting.blue;
+  bool customLogicEnabled = false;
+  String customLogicJson = '';
 
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
@@ -50,6 +54,8 @@ class AppSettings extends ChangeNotifier {
     theme = _readEnum(_keyTheme, AppThemeSetting.values, AppThemeSetting.system);
     notificationsEnabled = _prefs?.getBool(_keyNotifications) ?? true;
     appBarColorSetting = _readEnum(_keyAppBarColor, AppBarColorSetting.values, AppBarColorSetting.blue);
+    customLogicEnabled = _prefs?.getBool(_keyCustomLogicEnabled) ?? false;
+    customLogicJson = _prefs?.getString(_keyCustomLogicJson) ?? '';
     notifyListeners();
   }
 
@@ -119,6 +125,18 @@ class AppSettings extends ChangeNotifier {
   Future<void> setAppBarColor(AppBarColorSetting value) async {
     appBarColorSetting = value;
     await _prefs?.setString(_keyAppBarColor, describeEnum(value));
+    notifyListeners();
+  }
+
+  Future<void> setCustomLogicEnabled(bool value) async {
+    customLogicEnabled = value;
+    await _prefs?.setBool(_keyCustomLogicEnabled, value);
+    notifyListeners();
+  }
+
+  Future<void> setCustomLogicJson(String value) async {
+    customLogicJson = value;
+    await _prefs?.setString(_keyCustomLogicJson, value);
     notifyListeners();
   }
 

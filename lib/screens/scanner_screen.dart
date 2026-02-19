@@ -6,6 +6,7 @@ import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'saved_screen.dart';
 import 'help_screen.dart';
+import 'custom_logic_screen.dart';
 import '../widgets/corner_marker.dart';
 import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
@@ -13,6 +14,7 @@ import '../utils/db_helper.dart';
 import '../models/scan_history_model.dart';
 import '../utils/app_settings.dart';
 import '../utils/constants.dart';
+import '../utils/custom_logic.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/common_app_bar.dart';
@@ -43,6 +45,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     {'icon': Icons.history, 'title': 'History', 'page': 'history'},
     {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
     {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
+    {'icon': Icons.code, 'title': 'Custom Logic', 'page': 'custom_logic'},
     {'icon': Icons.help, 'title': 'Help', 'page': 'help'},
     {'icon': Icons.share, 'title': 'Share App', 'page': 'share'},
   ];
@@ -143,6 +146,13 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           builder: (context) => const HelpScreen(),
         ),
       );
+    } else if (page == 'custom_logic') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CustomLogicScreen(),
+        ),
+      );
     } else if (page == 'share') {
       _shareApp();
     } else {
@@ -185,6 +195,102 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
         const SnackBar(content: Text('Unable to open the URL')),
       );
     }
+  }
+
+  Future<bool> _runCustomLogic(String code, String format) async {
+    if (!_settings.customLogicEnabled) return false;
+    final rules = CustomLogicEngine.parseRules(_settings.customLogicJson);
+    if (rules.isEmpty) return false;
+    final engine = CustomLogicEngine(rules);
+    final rule = engine.matchRule(code);
+    if (rule == null) return false;
+
+    final json = CustomLogicEngine.tryParseJson(code);
+
+    for (final action in rule.actions) {
+      switch (action.type) {
+        case 'open_url':
+          final urlValue = CustomLogicEngine.resolveValue(code, json, action.value);
+          if (urlValue != null && _isValidUrl(urlValue)) {
+            await _openUrl(urlValue);
+          }
+          break;
+        case 'show_message':
+          final message = CustomLogicEngine.resolveValue(code, json, action.value) ?? 'Matched rule: ${rule.name}';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message)),
+            );
+          }
+          break;
+        case 'show_json_fields':
+          if (mounted) {
+            final fields = action.fields ?? [];
+            final content = _buildJsonFieldsDisplay(json, fields);
+            await showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text(rule.name),
+                content: content,
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+          break;
+        case 'show_result':
+          if (mounted) {
+            final mapping = action.mapping ?? {};
+            final resolved = CustomLogicEngine.resolveMapping(code, json, mapping);
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScanResultScreen(
+                  barcodeData: code,
+                  format: format,
+                  customFields: resolved,
+                  customTitle: rule.name,
+                ),
+              ),
+            );
+          }
+          break;
+        case 'sound':
+          if (_settings.soundEnabled) {
+            SystemSound.play(SystemSoundType.click);
+          }
+          break;
+        case 'vibrate':
+          if (_settings.vibrationEnabled) {
+            HapticFeedback.mediumImpact();
+          }
+          break;
+      }
+    }
+
+    if (rule.saveToHistory) {
+      await _saveScanToHistory(code, format);
+    }
+    return true;
+  }
+
+  Widget _buildJsonFieldsDisplay(Map<String, dynamic>? json, List<String> fields) {
+    if (json == null) {
+      return const Text('No JSON data found in this QR code.');
+    }
+    if (fields.isEmpty) {
+      return Text(json.toString());
+    }
+    final buffer = StringBuffer();
+    for (final field in fields) {
+      final value = CustomLogicEngine.resolveValue('', json, 'field:$field');
+      buffer.writeln('$field: ${value ?? '-'}');
+    }
+    return Text(buffer.toString().trim());
   }
 
   Future<void> pickImageFromGallery() async {
@@ -275,28 +381,35 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                 controller.stop();
                 _playScanFeedback();
 
-                // Save to database
-                await _saveScanToHistory(code, barcodes.first.format.name);
-
                 if (mounted) {
-                  if (_settings.autoOpenUrl && _isValidUrl(code)) {
-                    await _openUrl(code);
+                  final handled = await _runCustomLogic(code, barcodes.first.format.name);
+                  if (handled) {
                     if (mounted) {
                       await Future.delayed(const Duration(milliseconds: 600));
                       controller.start();
                     }
                   } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ScanResultScreen(
-                          barcodeData: code,
-                          format: barcodes.first.format.name,
+                    // Default behavior
+                    await _saveScanToHistory(code, barcodes.first.format.name);
+                    if (_settings.autoOpenUrl && _isValidUrl(code)) {
+                      await _openUrl(code);
+                      if (mounted) {
+                        await Future.delayed(const Duration(milliseconds: 600));
+                        controller.start();
+                      }
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ScanResultScreen(
+                            barcodeData: code,
+                            format: barcodes.first.format.name,
+                          ),
                         ),
-                      ),
-                    ).then((_) {
-                      controller.start();
-                    });
+                      ).then((_) {
+                        controller.start();
+                      });
+                    }
                   }
                 }
               }

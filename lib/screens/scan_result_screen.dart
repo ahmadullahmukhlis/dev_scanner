@@ -9,6 +9,8 @@ class ScanResultScreen extends StatelessWidget {
   final String format;
   final String? imagePath;
   final String? productName;
+  final Map<String, String>? customFields;
+  final String? customTitle;
 
   const ScanResultScreen({
     Key? key,
@@ -16,11 +18,14 @@ class ScanResultScreen extends StatelessWidget {
     required this.format,
     this.imagePath,
     this.productName,
+    this.customFields,
+    this.customTitle,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final isUrl = _isValidUrl(barcodeData);
+    final hasCustomFields = customFields != null && customFields!.isNotEmpty;
 
     return Scaffold(
       appBar: CommonAppBar(
@@ -55,53 +60,54 @@ class ScanResultScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      const Text(
-                        'Scanned Data',
-                        style: TextStyle(
+                      Text(
+                        customTitle ?? 'Scanned Data',
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Make clickable if URL
-                      isUrl
-                          ? InkWell(
-                        onTap: () async {
-                          final urlString = barcodeData.trim();
-                          final url = urlString.startsWith('http://') || urlString.startsWith('https://')
-                              ? Uri.parse(urlString)
-                              : Uri.parse('https://$urlString');
+                      if (hasCustomFields)
+                        _buildCustomFields()
+                      else
+                        isUrl
+                            ? InkWell(
+                                onTap: () async {
+                                  final urlString = barcodeData.trim();
+                                  final url = urlString.startsWith('http://') || urlString.startsWith('https://')
+                                      ? Uri.parse(urlString)
+                                      : Uri.parse('https://$urlString');
 
-                          // Attempt to launch
-                          try {
-                            if (!await launchUrl(url, mode: LaunchMode.platformDefault)) {
-                              _showSnackBar(context, 'Cannot open URL');
-                            }
-                          } catch (e) {
-                            _showSnackBar(context, 'Error opening URL');
-                          }
-                        },
-                        child: Text(
-                          barcodeData,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline,
-                            letterSpacing: 1,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                          : SelectableText(
-                        barcodeData,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                                  try {
+                                    if (!await launchUrl(url, mode: LaunchMode.platformDefault)) {
+                                      _showSnackBar(context, 'Cannot open URL');
+                                    }
+                                  } catch (e) {
+                                    _showSnackBar(context, 'Error opening URL');
+                                  }
+                                },
+                                child: Text(
+                                  barcodeData,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                    decoration: TextDecoration.underline,
+                                    letterSpacing: 1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : SelectableText(
+                                barcodeData,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                       const SizedBox(height: 16),
                       Container(
                         height: 2,
@@ -155,6 +161,34 @@ class ScanResultScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCustomFields() {
+    final fields = customFields ?? {};
+    return Column(
+      children: fields.entries
+          .map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                children: [
+                  Text(
+                    entry.key,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.value,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
