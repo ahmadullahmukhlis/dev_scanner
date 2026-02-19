@@ -11,7 +11,8 @@ import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
 import '../utils/db_helper.dart';
 import '../models/scan_history_model.dart';
-import 'dart:io';
+import '../utils/app_settings.dart';
+import 'package:flutter/services.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
@@ -21,11 +22,11 @@ class BarcodeScannerScreen extends StatefulWidget {
 }
 
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with SingleTickerProviderStateMixin {
-  final MobileScannerController controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    facing: CameraFacing.back,
-    torchEnabled: false,
-  );
+  late MobileScannerController controller;
+  final AppSettings _settings = AppSettings.instance;
+  CameraFacingSetting? _lastCameraFacing;
+  FlashSetting? _lastFlash;
+  ScanSpeedSetting? _lastScanSpeed;
 
   bool isSidebarOpen = false;
   double zoomLevel = 1.0;
@@ -46,6 +47,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   @override
   void initState() {
     super.initState();
+    _initControllerFromSettings();
     _sidebarController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -54,13 +56,43 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
       parent: _sidebarController,
       curve: Curves.easeInOut,
     );
+    _settings.addListener(_handleSettingsChanged);
   }
 
   @override
   void dispose() {
     controller.dispose();
     _sidebarController.dispose();
+    _settings.removeListener(_handleSettingsChanged);
     super.dispose();
+  }
+
+  void _initControllerFromSettings() {
+    _lastCameraFacing = _settings.cameraFacing;
+    _lastFlash = _settings.flash;
+    _lastScanSpeed = _settings.scanSpeed;
+    controller = MobileScannerController(
+      detectionSpeed: _settings.detectionSpeed,
+      facing: _settings.scannerFacing,
+      torchEnabled: _settings.torchEnabled,
+    );
+  }
+
+  void _handleSettingsChanged() {
+    final needsControllerRebuild = _lastCameraFacing != _settings.cameraFacing ||
+        _lastFlash != _settings.flash ||
+        _lastScanSpeed != _settings.scanSpeed;
+
+    if (needsControllerRebuild) {
+      final oldController = controller;
+      _initControllerFromSettings();
+      oldController.dispose();
+      if (mounted) {
+        setState(() {});
+      }
+    } else if (mounted) {
+      setState(() {});
+    }
   }
 
   void toggleSidebar() {
@@ -127,6 +159,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     await _dbHelper.insertScan(scan);
   }
 
+  void _playScanFeedback() {
+    if (_settings.soundEnabled) {
+      SystemSound.play(SystemSoundType.click);
+    }
+    if (_settings.vibrationEnabled) {
+      HapticFeedback.mediumImpact();
+    }
+  }
+
   Future<void> pickImageFromGallery() async {
     try {
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
@@ -141,6 +182,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
           // Save to database
           await _saveScanToHistory(mockCode, mockType);
+          _playScanFeedback();
 
           if (mounted) {
             Navigator.push(
@@ -200,6 +242,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
               final String? code = barcodes.first.rawValue;
               if (code != null) {
                 controller.stop();
+                _playScanFeedback();
 
                 // Save to database
                 await _saveScanToHistory(code, barcodes.first.format.name);
