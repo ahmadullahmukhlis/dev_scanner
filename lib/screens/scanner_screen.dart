@@ -18,6 +18,7 @@ import '../utils/custom_logic.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/common_app_bar.dart';
+import '../utils/qr_rule_engine.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
@@ -39,6 +40,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   late Animation<double> _sidebarAnimation;
   final ImagePicker _imagePicker = ImagePicker();
   final DBHelper _dbHelper = DBHelper();
+  bool _isProcessingScan = false;
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
@@ -378,38 +380,59 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
             if (barcodes.isNotEmpty) {
               final String? code = barcodes.first.rawValue;
               if (code != null) {
+                if (_isProcessingScan) return;
+                _isProcessingScan = true;
                 controller.stop();
                 _playScanFeedback();
 
                 if (mounted) {
-                  final handled = await _runCustomLogic(code, barcodes.first.format.name);
-                  if (handled) {
-                    if (mounted) {
+                  try {
+                    final handled = await _runCustomLogic(code, barcodes.first.format.name);
+                    if (handled) {
                       await Future.delayed(const Duration(milliseconds: 600));
                       controller.start();
+                      _isProcessingScan = false;
+                      return;
                     }
-                  } else {
-                    // Default behavior
+
+                    final ruleResult = await QrRuleEngine.process(code);
+                    if (!ruleResult.allowed) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(ruleResult.message)),
+                      );
+                      await Future.delayed(const Duration(milliseconds: 600));
+                      controller.start();
+                      _isProcessingScan = false;
+                      return;
+                    }
+
+                    if (ruleResult.redirectUrl != null && ruleResult.redirectUrl!.isNotEmpty) {
+                      await _openUrl(ruleResult.redirectUrl!);
+                      await Future.delayed(const Duration(milliseconds: 600));
+                      controller.start();
+                      _isProcessingScan = false;
+                      return;
+                    }
+
+                    // Rules do not override default result unless redirect is present.
                     await _saveScanToHistory(code, barcodes.first.format.name);
-                    if (_settings.autoOpenUrl && _isValidUrl(code)) {
-                      await _openUrl(code);
-                      if (mounted) {
-                        await Future.delayed(const Duration(milliseconds: 600));
-                        controller.start();
-                      }
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ScanResultScreen(
-                            barcodeData: code,
-                            format: barcodes.first.format.name,
-                          ),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ScanResultScreen(
+                          barcodeData: code,
+                          format: barcodes.first.format.name,
+                          customFields: ruleResult.showResult
+                              ? ruleResult.mappedData?.map((key, value) => MapEntry(key, value.toString()))
+                              : null,
+                          customTitle: ruleResult.showResult ? 'Scan Result' : null,
                         ),
-                      ).then((_) {
-                        controller.start();
-                      });
-                    }
+                      ),
+                    ).then((_) {
+                      controller.start();
+                    });
+                  } finally {
+                    _isProcessingScan = false;
                   }
                 }
               }

@@ -34,9 +34,7 @@ class _CustomLogicScreenState extends State<CustomLogicScreen> with SingleTicker
 
   void _loadFromSettings() {
     _rules = CustomLogicEngine.parseRules(_settings.customLogicJson);
-    _editorController.text = _settings.customLogicJson.isNotEmpty
-        ? _settings.customLogicJson
-        : CustomLogicEngine.rulesToJson(_rules);
+    _editorController.text = _settings.customLogicJson;
   }
 
   @override
@@ -57,9 +55,28 @@ class _CustomLogicScreenState extends State<CustomLogicScreen> with SingleTicker
 
   Future<void> _saveEditorJson() async {
     try {
-      final parsed = CustomLogicEngine.parseRules(_editorController.text);
-      _rules = parsed;
-      await _settings.setCustomLogicJson(_editorController.text);
+      final raw = _editorController.text.trim();
+      if (raw.isEmpty) {
+        setState(() {
+          _editorError = 'Editor is empty';
+        });
+        return;
+      }
+
+      final decoded = json.decode(raw);
+      final isQrRules = decoded is Map<String, dynamic> &&
+          decoded.containsKey('rules') &&
+          decoded.containsKey('data') &&
+          decoded.containsKey('token');
+
+      if (isQrRules) {
+        await _settings.setCustomLogicJson(raw);
+        _rules = [];
+      } else {
+        final parsed = CustomLogicEngine.parseRules(raw);
+        _rules = parsed;
+        await _settings.setCustomLogicJson(raw);
+      }
       setState(() {
         _editorError = null;
       });
@@ -84,29 +101,8 @@ class _CustomLogicScreenState extends State<CustomLogicScreen> with SingleTicker
     });
 
     if (json is Map<String, dynamic>) {
-      final mapping = <String, String>{};
-      for (final entry in json.entries) {
-        mapping[entry.key] = entry.key;
-      }
-      final rule = CustomLogicRule(
-        name: 'Sample JSON Rule',
-        condition: CustomLogicCondition(
-          type: 'contains',
-          value: 'CHANGE_ME',
-        ),
-        actions: [
-          CustomLogicAction(
-            type: 'show_result',
-            mapping: mapping,
-          ),
-        ],
-        saveToHistory: false,
-      );
-      final template = CustomLogicEngine.rulesToJson([rule]);
-      setState(() {
-        _editorController.text = template;
-        _editorError = null;
-      });
+      _editorController.text = result;
+      await _saveEditorJson();
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
