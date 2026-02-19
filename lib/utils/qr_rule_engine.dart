@@ -18,10 +18,10 @@ class QrRuleResult {
 }
 
 class QrRuleEngine {
-  static Future<QrRuleResult> process(String raw) async {
+  static Future<QrRuleResult?> tryProcess(String raw) async {
     final parsed = _safeJson(raw);
-    if (parsed == null) {
-      return QrRuleResult(allowed: false, message: 'Invalid JSON');
+    if (parsed == null || !_isQrRulePayload(parsed)) {
+      return null;
     }
 
     final token = parsed['token'];
@@ -35,7 +35,9 @@ class QrRuleEngine {
     }
 
     final rules = parsed['rules'] as Map<String, dynamic>? ?? {};
-    final data = (parsed['data'] is Map<String, dynamic>) ? Map<String, dynamic>.from(parsed['data']) : <String, dynamic>{};
+    final data = (parsed['data'] is Map<String, dynamic>)
+        ? Map<String, dynamic>.from(parsed['data'])
+        : <String, dynamic>{};
 
     final replacedData = _applyReplace(rules['replace'] as Map<String, dynamic>?, data);
 
@@ -70,6 +72,10 @@ class QrRuleEngine {
     } catch (_) {
       return null;
     }
+  }
+
+  static bool _isQrRulePayload(Map<String, dynamic> payload) {
+    return payload.containsKey('rules') && payload.containsKey('data') && payload.containsKey('token');
   }
 
   static Future<bool> _verifyWithBackend(String raw) async {

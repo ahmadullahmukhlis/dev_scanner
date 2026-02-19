@@ -26,6 +26,8 @@ class AppSettings extends ChangeNotifier {
   static const String _keyAppBarColor = 'app_bar_color';
   static const String _keyCustomLogicEnabled = 'custom_logic_enabled';
   static const String _keyCustomLogicJson = 'custom_logic_json';
+  static const String _keyGatewayRulesEnabled = 'gateway_rules_enabled';
+  static const String _keyGatewayRulesJson = 'gateway_rules_json';
 
   SharedPreferences? _prefs;
 
@@ -41,6 +43,8 @@ class AppSettings extends ChangeNotifier {
   AppBarColorSetting appBarColorSetting = AppBarColorSetting.blue;
   bool customLogicEnabled = false;
   String customLogicJson = '';
+  bool gatewayRulesEnabled = true;
+  String gatewayRulesJson = '';
 
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
@@ -56,6 +60,8 @@ class AppSettings extends ChangeNotifier {
     appBarColorSetting = _readEnum(_keyAppBarColor, AppBarColorSetting.values, AppBarColorSetting.blue);
     customLogicEnabled = _prefs?.getBool(_keyCustomLogicEnabled) ?? false;
     customLogicJson = _prefs?.getString(_keyCustomLogicJson) ?? '';
+    gatewayRulesEnabled = _prefs?.getBool(_keyGatewayRulesEnabled) ?? true;
+    gatewayRulesJson = _prefs?.getString(_keyGatewayRulesJson) ?? '';
     notifyListeners();
   }
 
@@ -137,6 +143,18 @@ class AppSettings extends ChangeNotifier {
   Future<void> setCustomLogicJson(String value) async {
     customLogicJson = value;
     await _prefs?.setString(_keyCustomLogicJson, value);
+    notifyListeners();
+  }
+
+  Future<void> setGatewayRulesEnabled(bool value) async {
+    gatewayRulesEnabled = value;
+    await _prefs?.setBool(_keyGatewayRulesEnabled, value);
+    notifyListeners();
+  }
+
+  Future<void> setGatewayRulesJson(String value) async {
+    gatewayRulesJson = value;
+    await _prefs?.setString(_keyGatewayRulesJson, value);
     notifyListeners();
   }
 

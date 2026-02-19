@@ -6,7 +6,6 @@ import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'saved_screen.dart';
 import 'help_screen.dart';
-import 'custom_logic_screen.dart';
 import '../widgets/corner_marker.dart';
 import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
@@ -14,11 +13,12 @@ import '../utils/db_helper.dart';
 import '../models/scan_history_model.dart';
 import '../utils/app_settings.dart';
 import '../utils/constants.dart';
-import '../utils/custom_logic.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/common_app_bar.dart';
-import '../utils/qr_rule_engine.dart';
+import '../utils/gateway_rules.dart';
+import 'gateway_rules_screen.dart';
+import 'dart:convert';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
@@ -47,7 +47,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     {'icon': Icons.history, 'title': 'History', 'page': 'history'},
     {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
     {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
-    {'icon': Icons.code, 'title': 'Custom Logic', 'page': 'custom_logic'},
+    {'icon': Icons.rule, 'title': 'Custom Rules', 'page': 'custom_rules'},
     {'icon': Icons.help, 'title': 'Help', 'page': 'help'},
     {'icon': Icons.share, 'title': 'Share App', 'page': 'share'},
   ];
@@ -148,11 +148,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           builder: (context) => const HelpScreen(),
         ),
       );
-    } else if (page == 'custom_logic') {
+    } else if (page == 'custom_rules') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const CustomLogicScreen(),
+          builder: (context) => const GatewayRulesScreen(),
         ),
       );
     } else if (page == 'share') {
@@ -199,101 +199,16 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     }
   }
 
-  Future<bool> _runCustomLogic(String code, String format) async {
-    if (!_settings.customLogicEnabled) return false;
-    final rules = CustomLogicEngine.parseRules(_settings.customLogicJson);
-    if (rules.isEmpty) return false;
-    final engine = CustomLogicEngine(rules);
-    final rule = engine.matchRule(code);
-    if (rule == null) return false;
-
-    final json = CustomLogicEngine.tryParseJson(code);
-
-    for (final action in rule.actions) {
-      switch (action.type) {
-        case 'open_url':
-          final urlValue = CustomLogicEngine.resolveValue(code, json, action.value);
-          if (urlValue != null && _isValidUrl(urlValue)) {
-            await _openUrl(urlValue);
-          }
-          break;
-        case 'show_message':
-          final message = CustomLogicEngine.resolveValue(code, json, action.value) ?? 'Matched rule: ${rule.name}';
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message)),
-            );
-          }
-          break;
-        case 'show_json_fields':
-          if (mounted) {
-            final fields = action.fields ?? [];
-            final content = _buildJsonFieldsDisplay(json, fields);
-            await showDialog<void>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text(rule.name),
-                content: content,
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          }
-          break;
-        case 'show_result':
-          if (mounted) {
-            final mapping = action.mapping ?? {};
-            final resolved = CustomLogicEngine.resolveMapping(code, json, mapping);
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScanResultScreen(
-                  barcodeData: code,
-                  format: format,
-                  customFields: resolved,
-                  customTitle: rule.name,
-                ),
-              ),
-            );
-          }
-          break;
-        case 'sound':
-          if (_settings.soundEnabled) {
-            SystemSound.play(SystemSoundType.click);
-          }
-          break;
-        case 'vibrate':
-          if (_settings.vibrationEnabled) {
-            HapticFeedback.mediumImpact();
-          }
-          break;
-      }
+  Map<String, dynamic>? _tryParseJson(String raw) {
+    try {
+      final decoded = json.decode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return null;
+    } catch (_) {
+      return null;
     }
-
-    if (rule.saveToHistory) {
-      await _saveScanToHistory(code, format);
-    }
-    return true;
   }
 
-  Widget _buildJsonFieldsDisplay(Map<String, dynamic>? json, List<String> fields) {
-    if (json == null) {
-      return const Text('No JSON data found in this QR code.');
-    }
-    if (fields.isEmpty) {
-      return Text(json.toString());
-    }
-    final buffer = StringBuffer();
-    for (final field in fields) {
-      final value = CustomLogicEngine.resolveValue('', json, 'field:$field');
-      buffer.writeln('$field: ${value ?? '-'}');
-    }
-    return Text(buffer.toString().trim());
-  }
 
   Future<void> pickImageFromGallery() async {
     try {
@@ -387,45 +302,57 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
                 if (mounted) {
                   try {
-                    final handled = await _runCustomLogic(code, barcodes.first.format.name);
-                    if (handled) {
-                      await Future.delayed(const Duration(milliseconds: 600));
-                      controller.start();
-                      _isProcessingScan = false;
-                      return;
+                    if (_settings.gatewayRulesEnabled) {
+                      final decoded = _tryParseJson(code);
+                      if (decoded != null) {
+                        final rulesJson = _settings.gatewayRulesJson.trim();
+                        if (rulesJson.isNotEmpty) {
+                          try {
+                            final rulesDecoded = json.decode(rulesJson);
+                            if (rulesDecoded is Map<String, dynamic>) {
+                              final ruleSet = GatewayRuleSet.fromJson(rulesDecoded);
+                              final evaluation = GatewayRuleEngine.evaluate(decoded, ruleSet);
+                              if (evaluation.matched && evaluation.action != null) {
+                                final action = evaluation.action!;
+                                if (action.type == 'redirect' && action.url != null) {
+                                  final params = action.params ?? {};
+                                  final resolvedParams = GatewayRuleEngine.applyTemplateToMap(params, decoded);
+                                  final uri = Uri.parse(action.url!);
+                                  final merged = Map<String, String>.from(uri.queryParameters)
+                                    ..addAll(resolvedParams.map((k, v) => MapEntry(k, v.toString())));
+                                  await _openUrl(uri.replace(queryParameters: merged).toString());
+                                  await Future.delayed(const Duration(milliseconds: 600));
+                                  controller.start();
+                                  _isProcessingScan = false;
+                                  return;
+                                }
+                                if ((action.type == 'api_call' || action.type == 'backend_hook') && action.url != null) {
+                                  final body = action.body ?? {};
+                                  final resolvedBody = GatewayRuleEngine.applyTemplateToMap(body, decoded);
+                                  await GatewayRuleEngine.callApi(action.url!, resolvedBody);
+                                }
+                                if (action.type == 'route' && action.route != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Route: ${action.route}')),
+                                  );
+                                }
+                              }
+                            }
+                          } catch (_) {
+                            // Ignore rules parse errors; fall back to default result
+                          }
+                        }
+                      }
                     }
 
-                    final ruleResult = await QrRuleEngine.process(code);
-                    if (!ruleResult.allowed) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(ruleResult.message)),
-                      );
-                      await Future.delayed(const Duration(milliseconds: 600));
-                      controller.start();
-                      _isProcessingScan = false;
-                      return;
-                    }
-
-                    if (ruleResult.redirectUrl != null && ruleResult.redirectUrl!.isNotEmpty) {
-                      await _openUrl(ruleResult.redirectUrl!);
-                      await Future.delayed(const Duration(milliseconds: 600));
-                      controller.start();
-                      _isProcessingScan = false;
-                      return;
-                    }
-
-                    // Rules do not override default result unless redirect is present.
                     await _saveScanToHistory(code, barcodes.first.format.name);
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => ScanResultScreen(
                           barcodeData: code,
                           format: barcodes.first.format.name,
-                          customFields: ruleResult.showResult
-                              ? ruleResult.mappedData?.map((key, value) => MapEntry(key, value.toString()))
-                              : null,
-                          customTitle: ruleResult.showResult ? 'Scan Result' : null,
                         ),
                       ),
                     ).then((_) {
