@@ -128,153 +128,203 @@ class _GatewayRulesScreenState extends State<GatewayRulesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const CommonAppBar(title: AppConstants.appName),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Custom Gateway Rules Editor',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            value: _settings.gatewayRulesEnabled,
-            title: const Text('Enable Custom Rules'),
-            subtitle: const Text('Apply rules to JSON QR scans'),
-            onChanged: (value) => _settings.setGatewayRulesEnabled(value),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 280,
-            child: TextField(
-              controller: _editorController,
-              maxLines: null,
-              expands: true,
-              decoration: InputDecoration(
-                labelText: 'Rules JSON',
-                alignLabelWithHint: true,
-                border: const OutlineInputBorder(),
-                errorText: _error,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: const CommonAppBar(title: AppConstants.appName),
+        body: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Custom Gateway Rules Editor',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              style: const TextStyle(fontFamily: 'monospace'),
             ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _save,
-            child: const Text('Save Rules'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _scanSampleAndGenerate,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan QR Sample'),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Example format:',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          _ExampleCard(
-            title: 'Redirect + Replace + Message',
-            code: r'{'
-                '\n  "rules": ['
-                '\n    {'
-                '\n      "name": "Pay Route",'
-                '\n      "condition": {'
-                '\n        "field": "type",'
-                '\n        "operator": "equals",'
-                '\n        "value": "payment"'
-                '\n      },'
-                '\n      "replace": {'
-                '\n        "field_map": { "customer_code": "client_id" },'
-                '\n        "value_map": { "type": { "payment": "pay" } }'
-                '\n      },'
-                '\n      "actions": ['
-                '\n        {'
-                '\n          "type": "redirect",'
-                '\n          "url": "https://example.com/pay",'
-                '\n          "params": {'
-                '\n            "customer_id": "\$client_id",'
-                '\n            "amount": "\$amount"'
-                '\n          }'
-                '\n        },'
-                '\n        { "type": "show_message", "message": "Redirecting \$client_id" }'
-                '\n      ]'
-                '\n    }'
-                '\n  ]'
-                '\n}',
-          ),
-          const SizedBox(height: 12),
-          _ExampleCard(
-            title: 'Multi-Condition (AND)',
-            code: r'{'
-                '\n  "rules": ['
-                '\n    {'
-                '\n      "name": "Pay If High Amount",'
-                '\n      "condition": {'
-                '\n        "all": ['
-                '\n          { "field": "type", "operator": "equals", "value": "payment" },'
-                '\n          { "field": "amount", "operator": "gt", "value": 100 }'
-                '\n        ]'
-                '\n      },'
-                '\n      "actions": ['
-                '\n        { "type": "redirect", "url": "https://example.com/pay" }'
-                '\n      ]'
-                '\n    }'
-                '\n  ]'
-                '\n}',
-          ),
-          const SizedBox(height: 12),
-          _ExampleCard(
-            title: 'Multi-Condition (OR)',
-            code: r'{'
-                '\n  "rules": ['
-                '\n    {'
-                '\n      "name": "Status Success",'
-                '\n      "condition": {'
-                '\n        "any": ['
-                '\n          { "field": "status", "operator": "equals", "value": "success" },'
-                '\n          { "field": "status", "operator": "equals", "value": "paid" }'
-                '\n        ]'
-                '\n      },'
-                '\n      "actions": ['
-                '\n        { "type": "show_message", "message": "Payment OK" }'
-                '\n      ]'
-                '\n    }'
-                '\n  ]'
-                '\n}',
-          ),
-          const SizedBox(height: 12),
-          _ExampleCard(
-            title: 'API Call / Backend Hook',
-            code: r'{'
-                '\n  "rules": ['
-                '\n    {'
-                '\n      "name": "Notify Backend",'
-                '\n      "condition": {'
-                '\n        "field": "event",'
-                '\n        "operator": "equals",'
-                '\n        "value": "checkin"'
-                '\n      },'
-                '\n      "actions": ['
-                '\n        {'
-                '\n          "type": "api_call",'
-                '\n          "url": "https://example.com/api/checkin",'
-                '\n          "body": {'
-                '\n            "user": "\$user_id",'
-                '\n            "time": "\$timestamp"'
-                '\n          }'
-                '\n        }'
-                '\n      ]'
-                '\n    }'
-                '\n  ]'
-                '\n}',
-          ),
-        ],
+            SwitchListTile(
+              value: _settings.gatewayRulesEnabled,
+              title: const Text('Enable Custom Rules'),
+              subtitle: const Text('Apply rules to JSON QR scans'),
+              onChanged: (value) => _settings.setGatewayRulesEnabled(value),
+            ),
+            const TabBar(
+              tabs: [
+                Tab(text: 'Editor'),
+                Tab(text: 'Examples'),
+                Tab(text: 'Variables'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildEditorTab(),
+                  _buildExamplesTab(),
+                  _buildVariablesTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+extension on _GatewayRulesScreenState {
+  Widget _buildEditorTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        SizedBox(
+          height: 280,
+          child: TextField(
+            controller: _editorController,
+            maxLines: null,
+            expands: true,
+            decoration: InputDecoration(
+              labelText: 'Rules JSON',
+              alignLabelWithHint: true,
+              border: const OutlineInputBorder(),
+              errorText: _error,
+            ),
+            style: const TextStyle(fontFamily: 'monospace'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('Save Rules'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _scanSampleAndGenerate,
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR Sample'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExamplesTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _ExampleCard(
+          title: 'Redirect + Replace + Message',
+          code: r'{'
+              '\n  "rules": ['
+              '\n    {'
+              '\n      "name": "Pay Route",'
+              '\n      "condition": {'
+              '\n        "field": "type",'
+              '\n        "operator": "equals",'
+              '\n        "value": "payment"'
+              '\n      },'
+              '\n      "replace": {'
+              '\n        "field_map": { "customer_code": "client_id" },'
+              '\n        "value_map": { "type": { "payment": "pay" } }'
+              '\n      },'
+              '\n      "actions": ['
+              '\n        {'
+              '\n          "type": "redirect",'
+              '\n          "url": "https://example.com/pay",'
+              '\n          "params": {'
+              '\n            "customer_id": "\$client_id",'
+              '\n            "amount": "\$amount"'
+              '\n          }'
+              '\n        },'
+              '\n        { "type": "show_message", "message": "Redirecting \$client_id" }'
+              '\n      ]'
+              '\n    }'
+              '\n  ]'
+              '\n}',
+        ),
+        const SizedBox(height: 12),
+        _ExampleCard(
+          title: 'Multi-Condition (AND)',
+          code: r'{'
+              '\n  "rules": ['
+              '\n    {'
+              '\n      "name": "Pay If High Amount",'
+              '\n      "condition": {'
+              '\n        "all": ['
+              '\n          { "field": "type", "operator": "equals", "value": "payment" },'
+              '\n          { "field": "amount", "operator": "gt", "value": 100 }'
+              '\n        ]'
+              '\n      },'
+              '\n      "actions": ['
+              '\n        { "type": "redirect", "url": "https://example.com/pay" }'
+              '\n      ]'
+              '\n    }'
+              '\n  ]'
+              '\n}',
+        ),
+        const SizedBox(height: 12),
+        _ExampleCard(
+          title: 'Multi-Condition (OR)',
+          code: r'{'
+              '\n  "rules": ['
+              '\n    {'
+              '\n      "name": "Status Success",'
+              '\n      "condition": {'
+              '\n        "any": ['
+              '\n          { "field": "status", "operator": "equals", "value": "success" },'
+              '\n          { "field": "status", "operator": "equals", "value": "paid" }'
+              '\n        ]'
+              '\n      },'
+              '\n      "actions": ['
+              '\n        { "type": "show_message", "message": "Payment OK" }'
+              '\n      ]'
+              '\n    }'
+              '\n  ]'
+              '\n}',
+        ),
+        const SizedBox(height: 12),
+        _ExampleCard(
+          title: 'API Call / Backend Hook',
+          code: r'{'
+              '\n  "rules": ['
+              '\n    {'
+              '\n      "name": "Notify Backend",'
+              '\n      "condition": {'
+              '\n        "field": "event",'
+              '\n        "operator": "equals",'
+              '\n        "value": "checkin"'
+              '\n      },'
+              '\n      "actions": ['
+              '\n        {'
+              '\n          "type": "api_call",'
+              '\n          "url": "https://example.com/api/checkin",'
+              '\n          "body": {'
+              '\n            "user": "\$user_id",'
+              '\n            "time": "\$timestamp"'
+              '\n          }'
+              '\n        }'
+              '\n      ]'
+              '\n    }'
+              '\n  ]'
+              '\n}',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVariablesTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: const [
+        Text('Variables', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        SizedBox(height: 8),
+        Text(r'Use $key to insert JSON values. Nested keys use dot notation: $user.id'),
+        SizedBox(height: 12),
+        Text('Operators', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        SizedBox(height: 8),
+        Text('equals, contains, exists, gt, lt, gte, lte, starts_with, ends_with, in'),
+        SizedBox(height: 12),
+        Text('Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        SizedBox(height: 8),
+        Text('redirect, api_call, backend_hook, route, show_message, save_history'),
+      ],
     );
   }
 }
