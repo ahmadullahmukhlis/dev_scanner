@@ -237,7 +237,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildCommonAppBar(
+      appBar: CommonAppBar(
         title: AppConstants.appName,
         leading: IconButton(
           icon: const Icon(Icons.menu),

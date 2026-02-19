@@ -23,7 +23,7 @@ class ScanResultScreen extends StatelessWidget {
     final isUrl = _isValidUrl(barcodeData);
 
     return Scaffold(
-      appBar: buildCommonAppBar(
+      appBar: CommonAppBar(
         title: AppConstants.appName,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

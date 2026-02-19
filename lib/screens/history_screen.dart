@@ -162,7 +162,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildCommonAppBar(
+      appBar: CommonAppBar(
         title: AppConstants.appName,
         actions: [
           IconButton(

@@ -8,7 +8,7 @@ class SavedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildCommonAppBar(title: AppConstants.appName),
+      appBar: const CommonAppBar(title: AppConstants.appName),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

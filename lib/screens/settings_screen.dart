@@ -16,7 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildCommonAppBar(title: AppConstants.appName),
+      appBar: const CommonAppBar(title: AppConstants.appName),
       body: AnimatedBuilder(
         animation: _settings,
         builder: (context, _) {
@@ -122,6 +122,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                       current: _settings.theme,
                       onSelected: _settings.setTheme,
+                    ),
+                  ),
+                  _buildSettingsTile(
+                    Icons.palette,
+                    'App Bar Color',
+                    _settings.appBarColorLabel,
+                    onTap: () => _showSelectionDialog<AppBarColorSetting>(
+                      title: 'App Bar Color',
+                      options: const [
+                        _SettingsOption(label: 'Blue', value: AppBarColorSetting.blue),
+                        _SettingsOption(label: 'Green', value: AppBarColorSetting.green),
+                        _SettingsOption(label: 'Orange', value: AppBarColorSetting.orange),
+                        _SettingsOption(label: 'Teal', value: AppBarColorSetting.teal),
+                        _SettingsOption(label: 'Red', value: AppBarColorSetting.red),
+                        _SettingsOption(label: 'Purple', value: AppBarColorSetting.purple),
+                        _SettingsOption(label: 'Black', value: AppBarColorSetting.black),
+                      ],
+                      current: _settings.appBarColorSetting,
+                      onSelected: _settings.setAppBarColor,
                     ),
                   ),
                   _buildSwitchTile(

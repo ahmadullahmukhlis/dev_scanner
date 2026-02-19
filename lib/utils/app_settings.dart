@@ -7,6 +7,7 @@ enum CameraFacingSetting { back, front }
 enum FlashSetting { off, on }
 enum ScanSpeedSetting { normal, noDuplicates, unrestricted }
 enum AppThemeSetting { system, light, dark }
+enum AppBarColorSetting { blue, green, orange, teal, red, purple, black }
 
 class AppSettings extends ChangeNotifier {
   AppSettings._();
@@ -22,6 +23,7 @@ class AppSettings extends ChangeNotifier {
   static const String _keyLanguage = 'language';
   static const String _keyTheme = 'theme';
   static const String _keyNotifications = 'notifications_enabled';
+  static const String _keyAppBarColor = 'app_bar_color';
 
   SharedPreferences? _prefs;
 
@@ -34,6 +36,7 @@ class AppSettings extends ChangeNotifier {
   String language = 'English';
   AppThemeSetting theme = AppThemeSetting.system;
   bool notificationsEnabled = true;
+  AppBarColorSetting appBarColorSetting = AppBarColorSetting.blue;
 
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
@@ -46,6 +49,7 @@ class AppSettings extends ChangeNotifier {
     language = _prefs?.getString(_keyLanguage) ?? 'English';
     theme = _readEnum(_keyTheme, AppThemeSetting.values, AppThemeSetting.system);
     notificationsEnabled = _prefs?.getBool(_keyNotifications) ?? true;
+    appBarColorSetting = _readEnum(_keyAppBarColor, AppBarColorSetting.values, AppBarColorSetting.blue);
     notifyListeners();
   }
 
@@ -112,6 +116,12 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setAppBarColor(AppBarColorSetting value) async {
+    appBarColorSetting = value;
+    await _prefs?.setString(_keyAppBarColor, describeEnum(value));
+    notifyListeners();
+  }
+
   CameraFacing get scannerFacing {
     return cameraFacing == CameraFacingSetting.front ? CameraFacing.front : CameraFacing.back;
   }
@@ -142,6 +152,45 @@ class AppSettings extends ChangeNotifier {
     }
   }
 
+  Color get appBarColor {
+    switch (appBarColorSetting) {
+      case AppBarColorSetting.green:
+        return Colors.green.shade700;
+      case AppBarColorSetting.orange:
+        return Colors.orange.shade700;
+      case AppBarColorSetting.teal:
+        return Colors.teal.shade700;
+      case AppBarColorSetting.red:
+        return Colors.red.shade700;
+      case AppBarColorSetting.purple:
+        return Colors.purple.shade700;
+      case AppBarColorSetting.black:
+        return Colors.black;
+      case AppBarColorSetting.blue:
+      default:
+        return Colors.blue.shade700;
+    }
+  }
+
+  String get appBarColorLabel {
+    switch (appBarColorSetting) {
+      case AppBarColorSetting.green:
+        return 'Green';
+      case AppBarColorSetting.orange:
+        return 'Orange';
+      case AppBarColorSetting.teal:
+        return 'Teal';
+      case AppBarColorSetting.red:
+        return 'Red';
+      case AppBarColorSetting.purple:
+        return 'Purple';
+      case AppBarColorSetting.black:
+        return 'Black';
+      case AppBarColorSetting.blue:
+      default:
+        return 'Blue';
+    }
+  }
   String get cameraLabel {
     return cameraFacing == CameraFacingSetting.front ? 'Front Camera' : 'Back Camera';
   }
