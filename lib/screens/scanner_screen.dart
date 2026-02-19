@@ -312,29 +312,39 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                             if (rulesDecoded is Map<String, dynamic>) {
                               final ruleSet = GatewayRuleSet.fromJson(rulesDecoded);
                               final evaluation = GatewayRuleEngine.evaluate(decoded, ruleSet);
-                              if (evaluation.matched && evaluation.action != null) {
-                                final action = evaluation.action!;
-                                if (action.type == 'redirect' && action.url != null) {
-                                  final params = action.params ?? {};
-                                  final resolvedParams = GatewayRuleEngine.applyTemplateToMap(params, decoded);
-                                  final uri = Uri.parse(action.url!);
-                                  final merged = Map<String, String>.from(uri.queryParameters)
-                                    ..addAll(resolvedParams.map((k, v) => MapEntry(k, v.toString())));
-                                  await _openUrl(uri.replace(queryParameters: merged).toString());
-                                  await Future.delayed(const Duration(milliseconds: 600));
-                                  controller.start();
-                                  _isProcessingScan = false;
-                                  return;
-                                }
-                                if ((action.type == 'api_call' || action.type == 'backend_hook') && action.url != null) {
-                                  final body = action.body ?? {};
-                                  final resolvedBody = GatewayRuleEngine.applyTemplateToMap(body, decoded);
-                                  await GatewayRuleEngine.callApi(action.url!, resolvedBody);
-                                }
-                                if (action.type == 'route' && action.route != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Route: ${action.route}')),
-                                  );
+                              if (evaluation.matched && evaluation.actions != null) {
+                                final data = evaluation.mappedData ?? decoded;
+                                for (final action in evaluation.actions!) {
+                                  if (action.type == 'redirect' && action.url != null) {
+                                    final params = action.params ?? {};
+                                    final resolvedParams = GatewayRuleEngine.applyTemplateToMap(params, data);
+                                    final uri = Uri.parse(action.url!);
+                                    final merged = Map<String, String>.from(uri.queryParameters)
+                                      ..addAll(resolvedParams.map((k, v) => MapEntry(k, v.toString())));
+                                    await _openUrl(uri.replace(queryParameters: merged).toString());
+                                    await Future.delayed(const Duration(milliseconds: 600));
+                                    controller.start();
+                                    _isProcessingScan = false;
+                                    return;
+                                  }
+                                  if ((action.type == 'api_call' || action.type == 'backend_hook') && action.url != null) {
+                                    final body = action.body ?? {};
+                                    final resolvedBody = GatewayRuleEngine.applyTemplateToMap(body, data);
+                                    await GatewayRuleEngine.callApi(action.url!, resolvedBody);
+                                  }
+                                  if (action.type == 'route' && action.route != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Route: ${action.route}')),
+                                    );
+                                  }
+                                  if (action.type == 'show_message' && action.message != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(GatewayRuleEngine.applyTemplate(action.message!, data))),
+                                    );
+                                  }
+                                  if (action.type == 'save_history') {
+                                    await _saveScanToHistory(code, barcodes.first.format.name);
+                                  }
                                 }
                               }
                             }
