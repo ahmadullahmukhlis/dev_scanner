@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../utils/app_settings.dart';
 import '../utils/constants.dart';
 import '../widgets/common_app_bar.dart';
@@ -14,29 +13,11 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AppSettings _settings = AppSettings.instance;
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
-  void initState() {
-    super.initState();
-    _audioPlayer.setReleaseMode(ReleaseMode.stop);
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
   Future<void> _playTestSound() async {
     try {
-      if (_settings.soundType == SoundTypeSetting.custom) {
-        await _audioPlayer.stop();
-        await _audioPlayer.setVolume(_settings.soundVolume);
-        await _audioPlayer.play(AssetSource(_settings.soundAssetPath));
-      } else {
-        SystemSound.play(SystemSoundType.alert);
-      }
+      SystemSound.play(SystemSoundType.alert);
     } catch (_) {
       SystemSound.play(SystemSoundType.alert);
     }
@@ -113,42 +94,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Play sound on scan',
                     value: _settings.soundEnabled,
                     onChanged: _settings.setSoundEnabled,
-                  ),
-                  _buildSettingsTile(
-                    Icons.music_note,
-                    'Sound Type',
-                    _settings.soundTypeLabel,
-                    onTap: () => _showSelectionDialog<SoundTypeSetting>(
-                      title: 'Sound Type',
-                      options: const [
-                        _SettingsOption(label: 'System', value: SoundTypeSetting.system),
-                        _SettingsOption(label: 'Custom', value: SoundTypeSetting.custom),
-                      ],
-                      current: _settings.soundType,
-                      onSelected: _settings.setSoundType,
-                    ),
-                  ),
-                  _buildSettingsTile(
-                    Icons.tune,
-                    'Sound Tone',
-                    _settings.soundAssetLabel,
-                    onTap: () => _showSelectionDialog<SoundAssetSetting>(
-                      title: 'Sound Tone',
-                      options: const [
-                        _SettingsOption(label: 'Beep', value: SoundAssetSetting.beep),
-                        _SettingsOption(label: 'Chirp', value: SoundAssetSetting.chirp),
-                        _SettingsOption(label: 'Tick', value: SoundAssetSetting.tick),
-                      ],
-                      current: _settings.soundAsset,
-                      onSelected: _settings.setSoundAsset,
-                    ),
-                  ),
-                  _buildSliderTile(
-                    icon: Icons.volume_down,
-                    title: 'Sound Volume',
-                    subtitle: _settings.soundVolumeLabel,
-                    value: _settings.soundVolume,
-                    onChanged: _settings.setSoundVolume,
                   ),
                   _buildSettingsTile(
                     Icons.play_arrow,
@@ -253,32 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSliderTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required double value,
-    required ValueChanged<double> onChanged,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.blue.shade700),
-      title: Text(title),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(subtitle),
-          Slider(
-            value: value,
-            min: 0.0,
-            max: 1.0,
-            divisions: 10,
-            label: subtitle,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   Future<void> _showSelectionDialog<T>({
     required String title,

@@ -16,7 +16,6 @@ import '../utils/app_settings.dart';
 import '../utils/constants.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/gateway_rules.dart';
 import '../widgets/common_app_bar.dart';
@@ -45,7 +44,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   bool _isProcessingScan = false;
   String? _lastScannedValue;
   DateTime? _lastScanTime;
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
@@ -71,7 +69,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
       curve: Curves.easeInOut,
     );
     _settings.addListener(_handleSettingsChanged);
-    _audioPlayer.setReleaseMode(ReleaseMode.stop);
   }
 
   @override
@@ -79,7 +76,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     controller.dispose();
     _sidebarController.dispose();
     _settings.removeListener(_handleSettingsChanged);
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -121,24 +117,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   void _playScanFeedback() {
     if (_settings.soundEnabled) {
-      if (_settings.soundType == SoundTypeSetting.custom) {
-        _playCustomSound();
-      } else {
-        SystemSound.play(SystemSoundType.alert);
-      }
+      SystemSound.play(SystemSoundType.alert);
     }
     if (_settings.vibrationEnabled) {
       HapticFeedback.mediumImpact();
-    }
-  }
-
-  Future<void> _playCustomSound() async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.setVolume(_settings.soundVolume);
-      await _audioPlayer.play(AssetSource(_settings.soundAssetPath));
-    } catch (_) {
-      SystemSound.play(SystemSoundType.alert);
     }
   }
 
