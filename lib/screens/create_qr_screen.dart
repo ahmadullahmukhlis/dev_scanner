@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr/qr.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../utils/constants.dart';
 import '../widgets/common_app_bar.dart';
@@ -120,31 +121,67 @@ class _CreateQrScreenState extends State<CreateQrScreen> {
     return file.path;
   }
 
+  Future<bool> _ensureStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+    final status = await Permission.storage.request();
+    if (status.isGranted) return true;
+    final manage = await Permission.manageExternalStorage.request();
+    return manage.isGranted;
+  }
+
+  Future<String?> _saveToDownloads(Uint8List bytes, String ext) async {
+    if (!Platform.isAndroid) {
+      return _saveBytes(bytes, ext);
+    }
+    final hasPerm = await _ensureStoragePermission();
+    if (!hasPerm) return null;
+    final dir = Directory('/storage/emulated/0/Download');
+    if (!dir.existsSync()) return null;
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final path = '${dir.path}/qr_$stamp.$ext';
+    await File(path).writeAsBytes(bytes, flush: true);
+    return path;
+  }
+
   Future<void> _savePng() async {
     final bytes = await _toPngBytes();
-    final path = await _saveBytes(bytes, 'png');
-    _showSnack('Saved PNG: $path');
+    final path = await _saveToDownloads(bytes, 'png');
+    if (path != null) {
+      _showSnack('Saved PNG: $path');
+    } else {
+      _showSnack('Save PNG failed (permission)');
+    }
   }
 
   Future<void> _saveJpg() async {
     final bytes = await _toJpgBytes();
-    final path = await _saveBytes(bytes, 'jpg');
-    _showSnack('Saved JPG: $path');
+    final path = await _saveToDownloads(bytes, 'jpg');
+    if (path != null) {
+      _showSnack('Saved JPG: $path');
+    } else {
+      _showSnack('Save JPG failed (permission)');
+    }
   }
 
   Future<void> _saveSvg() async {
     final svg = await _toSvgString();
-    final dir = await getApplicationDocumentsDirectory();
-    final stamp = DateTime.now().millisecondsSinceEpoch;
-    final path = '${dir.path}/qr_$stamp.svg';
-    await File(path).writeAsString(svg, flush: true);
-    _showSnack('Saved SVG: $path');
+    final bytes = Uint8List.fromList(utf8.encode(svg));
+    final path = await _saveToDownloads(bytes, 'svg');
+    if (path != null) {
+      _showSnack('Saved SVG: $path');
+    } else {
+      _showSnack('Save SVG failed (permission)');
+    }
   }
 
   Future<void> _savePdf() async {
     final bytes = await _toPdfBytes();
-    final path = await _saveBytes(bytes, 'pdf');
-    _showSnack('Saved PDF: $path');
+    final path = await _saveToDownloads(bytes, 'pdf');
+    if (path != null) {
+      _showSnack('Saved PDF: $path');
+    } else {
+      _showSnack('Save PDF failed (permission)');
+    }
   }
 
   Future<void> _sharePng() async {
