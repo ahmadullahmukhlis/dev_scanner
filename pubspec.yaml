@@ -17,6 +17,15 @@ dependencies:
   sqflite: ^2.4.2
   path: ^1.9.1
   url_launcher: ^6.3.2
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.4
+  http: ^1.2.2
+  audioplayers: ^6.1.0
+  qr_flutter: ^4.1.0
+  pdf: ^3.11.0
+  image: ^4.2.0
+  pasteboard: ^0.2.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:
@@ -39,3 +48,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/sounds/scan_beep.wav
+    - assets/sounds/scan_chirp.wav
+    - assets/sounds/scan_tick.wav

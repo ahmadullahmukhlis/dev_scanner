@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/common_app_bar.dart';
+import '../utils/constants.dart';
 
 class SavedScreen extends StatelessWidget {
   const SavedScreen({Key? key}) : super(key: key);
@@ -6,11 +8,7 @@ class SavedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Saved Items'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-      ),
+      appBar: const CommonAppBar(title: AppConstants.appName),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

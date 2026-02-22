@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppConstants {
-  static const String appName = 'AfPay';
+  static const String appName = 'Dev Scanner';
   static const String scanBarcode = 'Scan Barcode';
 
   // Colors

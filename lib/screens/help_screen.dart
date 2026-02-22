@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/common_app_bar.dart';
+import '../utils/constants.dart';
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({Key? key}) : super(key: key);
@@ -6,11 +8,7 @@ class HelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Help & Support'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-      ),
+      appBar: const CommonAppBar(title: AppConstants.appName),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
