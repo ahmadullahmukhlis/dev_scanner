@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'scan_result_screen.dart';
-import 'history_screen.dart';
-import 'settings_screen.dart';
-import 'saved_screen.dart';
-import 'help_screen.dart';
 import '../widgets/corner_marker.dart';
 import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
@@ -17,9 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../widgets/common_app_bar.dart';
 import '../utils/gateway_rules.dart';
-import 'gateway_rules_screen.dart';
 import 'dart:convert';
 
 class BarcodeScannerScreen extends StatefulWidget {
@@ -29,17 +23,13 @@ class BarcodeScannerScreen extends StatefulWidget {
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
 }
 
-class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with SingleTickerProviderStateMixin {
+class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   late MobileScannerController controller;
   final AppSettings _settings = AppSettings.instance;
   CameraFacingSetting? _lastCameraFacing;
-  FlashSetting? _lastFlash;
   ScanSpeedSetting? _lastScanSpeed;
 
-  bool isSidebarOpen = false;
   double zoomLevel = 1.0;
-  late AnimationController _sidebarController;
-  late Animation<double> _sidebarAnimation;
   final ImagePicker _imagePicker = ImagePicker();
   final DBHelper _dbHelper = DBHelper();
   bool _isProcessingScan = false;
@@ -47,28 +37,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   DateTime? _lastScanTime;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  final List<Map<String, dynamic>> menuItems = [
-    {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
-    {'icon': Icons.history, 'title': 'History', 'page': 'history'},
-    {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
-    {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
-    {'icon': Icons.rule, 'title': 'Custom Rules', 'page': 'custom_rules'},
-    {'icon': Icons.help, 'title': 'Help', 'page': 'help'},
-    {'icon': Icons.share, 'title': 'Share App', 'page': 'share'},
-  ];
-
   @override
   void initState() {
     super.initState();
     _initControllerFromSettings();
-    _sidebarController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _sidebarAnimation = CurvedAnimation(
-      parent: _sidebarController,
-      curve: Curves.easeInOut,
-    );
     _settings.addListener(_handleSettingsChanged);
     _audioPlayer.setReleaseMode(ReleaseMode.stop);
   }
@@ -76,7 +48,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   @override
   void dispose() {
     controller.dispose();
-    _sidebarController.dispose();
     _settings.removeListener(_handleSettingsChanged);
     _audioPlayer.dispose();
     super.dispose();
@@ -84,7 +55,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   void _initControllerFromSettings() {
     _lastCameraFacing = _settings.cameraFacing;
-    _lastFlash = _settings.flash;
     _lastScanSpeed = _settings.scanSpeed;
     controller = MobileScannerController(
       detectionSpeed: _settings.detectionSpeed,
@@ -95,7 +65,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   void _handleSettingsChanged() {
     final needsControllerRebuild = _lastCameraFacing != _settings.cameraFacing ||
-        _lastFlash != _settings.flash ||
         _lastScanSpeed != _settings.scanSpeed;
 
     if (needsControllerRebuild) {
@@ -107,67 +76,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
       }
     } else if (mounted) {
       setState(() {});
-    }
-  }
-
-  void toggleSidebar() {
-    setState(() {
-      isSidebarOpen = !isSidebarOpen;
-      if (isSidebarOpen) {
-        _sidebarController.forward();
-      } else {
-        _sidebarController.reverse();
-      }
-    });
-  }
-
-  void navigateTo(String page) {
-    toggleSidebar();
-
-    if (page == 'history') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HistoryScreen(),
-        ),
-      ).then((_) {
-        // Refresh when returning from history
-        setState(() {});
-      });
-    } else if (page == 'settings') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SettingsScreen(),
-        ),
-      );
-    } else if (page == 'saved') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SavedScreen(),
-        ),
-      );
-    } else if (page == 'help') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HelpScreen(),
-        ),
-      );
-    } else if (page == 'custom_rules') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const GatewayRulesScreen(),
-        ),
-      );
-    } else if (page == 'share') {
-      _shareApp();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Navigating to $page')),
-      );
     }
   }
 
@@ -287,36 +195,18 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     }
   }
 
-  void _shareApp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Share app dialog would open here')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CommonAppBar(
-        title: AppConstants.appName,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: toggleSidebar,
-        ),
-        actions: [
-          _buildTorchButton(),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => navigateTo('settings'),
-          ),
-        ],
+      appBar: AppBar(
+        title: Text(AppConstants.appName),
+        backgroundColor: _settings.appBarColor,
       ),
       body: Stack(
         children: [
           _buildScanner(),
-          _buildZoomControl(),
-          _buildBottomButtons(),
-          if (isSidebarOpen) _buildSidebarOverlay(),
-          _buildSidebar(),
+          _buildTopActions(),
+          _buildZoomBar(),
         ],
       ),
     );
@@ -462,39 +352,87 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     );
   }
 
-  Widget _buildZoomControl() {
+  Widget _buildTopActions() {
     return Positioned(
-      right: 20,
-      top: MediaQuery.of(context).size.height / 2 - 100,
+      top: MediaQuery.of(context).padding.top + 12,
+      left: 16,
+      right: 16,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildOverlayButton(
+            icon: Icons.flash_on,
+            onTap: () => controller.toggleTorch(),
+            valueListenable: controller,
+            builder: (state) {
+              final torchState = state.torchState;
+              if (torchState == TorchState.unavailable) return null;
+              final isOn = torchState == TorchState.on;
+              return isOn ? Icons.flash_on : Icons.flash_off;
+            },
+          ),
+          _buildOverlayButton(
+            icon: Icons.photo_library,
+            onTap: pickImageFromGallery,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverlayButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    ValueListenable<MobileScannerState>? valueListenable,
+    IconData? Function(MobileScannerState state)? builder,
+  }) {
+    if (valueListenable != null && builder != null) {
+      return ValueListenableBuilder<MobileScannerState>(
+        valueListenable: valueListenable,
+        builder: (context, state, _) {
+          final iconData = builder(state);
+          if (iconData == null) return const SizedBox.shrink();
+          return _buildOverlayButton(
+            icon: iconData,
+            onTap: onTap,
+          );
+        },
+      );
+    }
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        width: 40,
-        height: 200,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.6),
-          borderRadius: BorderRadius.circular(20),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withOpacity(0.4),
+            width: 1,
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: Icon(icon, color: Colors.white, size: 24),
+      ),
+    );
+  }
+
+  Widget _buildZoomBar() {
+    final size = MediaQuery.of(context).size;
+    final scannerSize = size.width * 0.7;
+    final top = (size.height - scannerSize) / 2;
+    final barTop = top + scannerSize + 12;
+    return Positioned(
+      top: barTop,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
           children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  zoomLevel = (zoomLevel + 0.5).clamp(1.0, 3.0);
-                  controller.setZoomScale(zoomLevel);
-                });
-              },
-              child: const Icon(Icons.zoom_in, color: Colors.white, size: 24),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                '${zoomLevel.toStringAsFixed(1)}x',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             GestureDetector(
               onTap: () {
                 setState(() {
@@ -502,172 +440,36 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                   controller.setZoomScale(zoomLevel);
                 });
               },
-              child: const Icon(Icons.zoom_out, color: Colors.white, size: 24),
+              child: const Icon(Icons.remove, color: Colors.white),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Slider(
+                value: zoomLevel,
+                min: 1.0,
+                max: 3.0,
+                divisions: 4,
+                label: '${zoomLevel.toStringAsFixed(1)}x',
+                onChanged: (value) {
+                  setState(() {
+                    zoomLevel = value;
+                    controller.setZoomScale(zoomLevel);
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  zoomLevel = (zoomLevel + 0.5).clamp(1.0, 3.0);
+                  controller.setZoomScale(zoomLevel);
+                });
+              },
+              child: const Icon(Icons.add, color: Colors.white),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildBottomButtons() {
-    return Positioned(
-      bottom: 40,
-      left: 0,
-      right: 0,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionButton(
-            icon: Icons.photo_library,
-            label: "Upload",
-            onTap: pickImageFromGallery,
-          ),
-          _buildActionButton(
-            icon: Icons.history,
-            label: "History",
-            onTap: () => navigateTo('history'),
-          ),
-          _buildActionButton(
-            icon: Icons.share,
-            label: "Share App",
-            onTap: _shareApp,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withOpacity(0.4),
-                width: 1,
-              ),
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarOverlay() {
-    return GestureDetector(
-      onTap: toggleSidebar,
-      child: Container(
-        color: Colors.black.withOpacity(0.5),
-      ),
-    );
-  }
-
-  Widget _buildSidebar() {
-    return AnimatedBuilder(
-      animation: _sidebarAnimation,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(
-            -MediaQuery.of(context).size.width * (1 - _sidebarAnimation.value),
-            0,
-          ),
-          child: child,
-        );
-      },
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.75,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topRight: Radius.circular(20),
-            bottomRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            _buildSidebarMenu(),
-
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSidebarMenu() {
-    return Expanded(
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        itemCount: menuItems.length,
-        itemBuilder: (context, index) {
-          final item = menuItems[index];
-          return ListTile(
-            leading: Icon(
-              item['icon'],
-              color: index == 0 ? Colors.blue.shade700 : Colors.grey.shade600,
-            ),
-            title: Text(
-              item['title'],
-              style: TextStyle(
-                color: index == 0 ? Colors.blue.shade700 : Colors.black87,
-                fontWeight: index == 0 ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            trailing: item['page'] == 'share'
-                ? const Icon(Icons.open_in_new, size: 16, color: Colors.grey)
-                : null,
-            onTap: () => navigateTo(item['page']),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSidebarFooterItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label tapped')),
-        );
-      },
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 10,
-            ),
-          ),
-        ],
       ),
     );
   }
