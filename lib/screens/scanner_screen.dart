@@ -14,6 +14,8 @@ import '../models/scan_history_model.dart';
 import '../utils/app_settings.dart';
 import '../utils/constants.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/common_app_bar.dart';
 import '../utils/gateway_rules.dart';
@@ -41,6 +43,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   final ImagePicker _imagePicker = ImagePicker();
   final DBHelper _dbHelper = DBHelper();
   bool _isProcessingScan = false;
+  String? _lastScannedValue;
+  DateTime? _lastScanTime;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
@@ -65,6 +70,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
       curve: Curves.easeInOut,
     );
     _settings.addListener(_handleSettingsChanged);
+    _audioPlayer.setReleaseMode(ReleaseMode.stop);
   }
 
   @override
@@ -72,6 +78,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     controller.dispose();
     _sidebarController.dispose();
     _settings.removeListener(_handleSettingsChanged);
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -82,7 +89,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
     controller = MobileScannerController(
       detectionSpeed: _settings.detectionSpeed,
       facing: _settings.scannerFacing,
-      torchEnabled: _settings.torchEnabled,
+      torchEnabled: false,
     );
   }
 
@@ -176,10 +183,24 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   void _playScanFeedback() {
     if (_settings.soundEnabled) {
-      SystemSound.play(SystemSoundType.click);
+      if (_settings.soundType == SoundTypeSetting.custom) {
+        _playCustomSound();
+      } else {
+        SystemSound.play(SystemSoundType.alert);
+      }
     }
     if (_settings.vibrationEnabled) {
       HapticFeedback.mediumImpact();
+    }
+  }
+
+  Future<void> _playCustomSound() async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.setVolume(_settings.soundVolume);
+      await _audioPlayer.play(AssetSource(_settings.soundAssetPath));
+    } catch (_) {
+      SystemSound.play(SystemSoundType.alert);
     }
   }
 
@@ -212,35 +233,50 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   Future<void> pickImageFromGallery() async {
     try {
+      if (kIsWeb) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image scan is not supported on web')),
+        );
+        return;
+      }
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Processing image for barcode...')),
         );
 
-        Future.delayed(const Duration(seconds: 1), () async {
-          final mockCode = '';
-          final mockType = 'EAN-13';
+        final BarcodeCapture? capture = await controller.analyzeImage(image.path);
+        final Barcode? firstBarcode = capture?.barcodes.isNotEmpty == true ? capture!.barcodes.first : null;
+        final String? code = firstBarcode?.rawValue;
 
-          // Save to database
-          await _saveScanToHistory(mockCode, mockType);
-          _playScanFeedback();
-
+        if (code == null || code.trim().isEmpty) {
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScanResultScreen(
-                  barcodeData: mockCode,
-                  format: mockType,
-                  imagePath: image.path,
-                ),
-              ),
-            ).then((_) {
-              controller.start();
-            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No barcode found in the image')),
+            );
           }
-        });
+          return;
+        }
+
+        await _saveScanToHistory(code, firstBarcode!.format.name);
+        _playScanFeedback();
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ScanResultScreen(
+                barcodeData: code,
+                format: firstBarcode.format.name,
+                imagePath: image.path,
+              ),
+            ),
+          ).then((_) {
+            _lastScannedValue = null;
+            _lastScanTime = null;
+            controller.start();
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -267,6 +303,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           onPressed: toggleSidebar,
         ),
         actions: [
+          _buildTorchButton(),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => navigateTo('settings'),
@@ -295,6 +332,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
             if (barcodes.isNotEmpty) {
               final String? code = barcodes.first.rawValue;
               if (code != null) {
+                if (_shouldIgnoreScan(code)) return;
                 if (_isProcessingScan) return;
                 _isProcessingScan = true;
                 controller.stop();
@@ -323,6 +361,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                                       ..addAll(resolvedParams.map((k, v) => MapEntry(k, v.toString())));
                                     await _openUrl(uri.replace(queryParameters: merged).toString());
                                     await Future.delayed(const Duration(milliseconds: 600));
+                                    _lastScannedValue = null;
+                                    _lastScanTime = null;
                                     controller.start();
                                     _isProcessingScan = false;
                                     return;
@@ -366,6 +406,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
                         ),
                       ),
                     ).then((_) {
+                      _lastScannedValue = null;
+                      _lastScanTime = null;
                       controller.start();
                     });
                   } finally {
@@ -400,6 +442,23 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTorchButton() {
+    return ValueListenableBuilder<MobileScannerState>(
+      valueListenable: controller,
+      builder: (context, state, _) {
+        final torchState = state.torchState;
+        if (torchState == TorchState.unavailable) {
+          return const SizedBox.shrink();
+        }
+        final isOn = torchState == TorchState.on;
+        return IconButton(
+          icon: Icon(isOn ? Icons.flash_on : Icons.flash_off),
+          onPressed: () => controller.toggleTorch(),
+        );
+      },
     );
   }
 
@@ -616,5 +675,24 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
   String _getCurrentDateTime() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
+  bool _shouldIgnoreScan(String code) {
+    final now = DateTime.now();
+    final cooldownMs = _settings.scanCooldownMs;
+    if (cooldownMs <= 0) {
+      _lastScannedValue = code;
+      _lastScanTime = now;
+      return false;
+    }
+    if (_lastScannedValue == code && _lastScanTime != null) {
+      final delta = now.difference(_lastScanTime!);
+      if (delta < Duration(milliseconds: cooldownMs)) {
+        return true;
+      }
+    }
+    _lastScannedValue = code;
+    _lastScanTime = now;
+    return false;
   }
 }

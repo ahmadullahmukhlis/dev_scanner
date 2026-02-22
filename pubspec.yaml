@@ -20,6 +20,7 @@ dependencies:
   shared_preferences: ^2.3.2
   path_provider: ^2.1.4
   http: ^1.2.2
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -42,3 +43,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/sounds/scan_beep.wav
+    - assets/sounds/scan_chirp.wav
+    - assets/sounds/scan_tick.wav
