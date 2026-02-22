@@ -427,10 +427,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       right: 16,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.6),
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: Row(
           children: [
             GestureDetector(
@@ -449,7 +445,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 min: 1.0,
                 max: 3.0,
                 divisions: 4,
-                label: '${zoomLevel.toStringAsFixed(1)}x',
+                label: '${(((zoomLevel - 1.0) / 2.0) * 100).round()}%',
+                activeColor: Colors.white,
+                inactiveColor: Colors.white.withOpacity(0.4),
                 onChanged: (value) {
                   setState(() {
                     zoomLevel = value;
@@ -457,6 +455,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   });
                 },
               ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${(((zoomLevel - 1.0) / 2.0) * 100).round()}%',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 8),
             GestureDetector(
