@@ -13,24 +13,55 @@ class GatewayRulesScreen extends StatefulWidget {
   State<GatewayRulesScreen> createState() => _GatewayRulesScreenState();
 }
 
-class _GatewayRulesScreenState extends State<GatewayRulesScreen> {
+class _GatewayRulesScreenState extends State<GatewayRulesScreen> with SingleTickerProviderStateMixin {
   final AppSettings _settings = AppSettings.instance;
   final TextEditingController _editorController = TextEditingController();
+  late TabController _tabController;
   String? _error;
+  List<Map<String, dynamic>> _rules = [];
+  int? _selectedRuleIndex;
 
   @override
   void initState() {
     super.initState();
-    _editorController.text = _settings.gatewayRulesJson;
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _loadRulesFromSettings();
   }
 
   @override
   void dispose() {
     _editorController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
+  void _loadRulesFromSettings() {
+    _rules = [];
+    _selectedRuleIndex = null;
+    final raw = _settings.gatewayRulesJson.trim();
+    if (raw.isEmpty) return;
+    try {
+      final decoded = json.decode(raw);
+      if (decoded is Map<String, dynamic> && decoded['rules'] is List) {
+        _rules = (decoded['rules'] as List).whereType<Map<String, dynamic>>().toList();
+        if (_rules.isNotEmpty) {
+          _selectedRuleIndex = 0;
+          _editorController.text = const JsonEncoder.withIndent('  ').convert(_rules.first);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveAllRules() async {
+    final payload = {'rules': _rules};
+    final raw = const JsonEncoder.withIndent('  ').convert(payload);
+    await _settings.setGatewayRulesJson(raw);
+  }
+
+  Future<void> _saveCurrentRule() async {
     final raw = _editorController.text.trim();
     if (raw.isEmpty) {
       setState(() => _error = 'Editor is empty');
@@ -38,15 +69,23 @@ class _GatewayRulesScreenState extends State<GatewayRulesScreen> {
     }
     try {
       final decoded = json.decode(raw);
-      if (decoded is! Map<String, dynamic> || decoded['rules'] is! List) {
-        setState(() => _error = 'Invalid rules format');
+      if (decoded is! Map<String, dynamic>) {
+        setState(() => _error = 'Rule must be a JSON object');
         return;
       }
-      await _settings.setGatewayRulesJson(raw);
-      setState(() => _error = null);
+      setState(() {
+        if (_selectedRuleIndex == null) {
+          _rules.add(decoded);
+          _selectedRuleIndex = _rules.length - 1;
+        } else {
+          _rules[_selectedRuleIndex!] = decoded;
+        }
+        _error = null;
+      });
+      await _saveAllRules();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rules saved')),
+          const SnackBar(content: Text('Rule saved')),
         );
       }
     } catch (_) {
@@ -102,75 +141,162 @@ class _GatewayRulesScreenState extends State<GatewayRulesScreen> {
       params[key] = '\$$key';
     });
 
-    final rules = data.entries.map((entry) {
-      return {
-        'name': 'Auto Rule: ${entry.key}',
-        'condition': {
-          'field': entry.key,
-          'operator': 'equals',
-          'value': entry.value,
+    final newRule = {
+      'name': 'Auto Rule',
+      'condition': {
+        'field': data.keys.first,
+        'operator': 'exists',
+        'value': true,
+      },
+      'actions': [
+        {
+          'type': 'redirect',
+          'url': urlController.text.trim(),
+          'params': params,
         },
-        'actions': [
-          {
-            'type': 'redirect',
-            'url': urlController.text.trim(),
-            'params': params,
-          },
-        ],
-      };
-    }).toList();
+      ],
+    };
 
-    final generated = {'rules': rules};
-
-    _editorController.text = const JsonEncoder.withIndent('  ').convert(generated);
-    setState(() => _error = null);
+    setState(() {
+      _rules.add(newRule);
+      _selectedRuleIndex = _rules.length - 1;
+      _editorController.text = const JsonEncoder.withIndent('  ').convert(newRule);
+      _error = null;
+    });
+    await _saveAllRules();
+    _tabController.animateTo(1);
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: const CommonAppBar(title: AppConstants.appName),
-        body: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Custom Gateway Rules Editor',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+    return Scaffold(
+      appBar: const CommonAppBar(title: AppConstants.appName),
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Custom Gateway Rules Editor',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SwitchListTile(
-              value: _settings.gatewayRulesEnabled,
-              title: const Text('Enable Custom Rules'),
-              subtitle: const Text('Apply rules to JSON QR scans'),
-              onChanged: (value) => _settings.setGatewayRulesEnabled(value),
-            ),
-            const TabBar(
-              tabs: [
-                Tab(text: 'Editor'),
-                Tab(text: 'Examples'),
-                Tab(text: 'Variables'),
+          ),
+          SwitchListTile(
+            value: _settings.gatewayRulesEnabled,
+            title: const Text('Enable Custom Rules'),
+            subtitle: const Text('Apply rules to JSON QR scans'),
+            onChanged: (value) => _settings.setGatewayRulesEnabled(value),
+          ),
+          TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Rules'),
+              Tab(text: 'Editor'),
+              Tab(text: 'Examples'),
+              Tab(text: 'Variables'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildRulesTab(),
+                _buildEditorTab(),
+                _buildExamplesTab(),
+                _buildVariablesTab(),
               ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildEditorTab(),
-                  _buildExamplesTab(),
-                  _buildVariablesTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      floatingActionButton: _tabController.index == 0
+          ? FloatingActionButton(
+              onPressed: _addEmptyRule,
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
 
 extension on _GatewayRulesScreenState {
+  void _addEmptyRule() {
+    final newRule = {
+      'name': 'New Rule',
+      'condition': {
+        'field': '',
+        'operator': 'equals',
+        'value': '',
+      },
+      'actions': [
+        {'type': 'redirect', 'url': '', 'params': {}},
+      ],
+    };
+    setState(() {
+      _rules.add(newRule);
+      _selectedRuleIndex = _rules.length - 1;
+      _editorController.text = const JsonEncoder.withIndent('  ').convert(newRule);
+      _error = null;
+    });
+    _tabController.animateTo(1);
+  }
+
+  void _selectRule(int index) {
+    setState(() {
+      _selectedRuleIndex = index;
+      _editorController.text = const JsonEncoder.withIndent('  ').convert(_rules[index]);
+      _error = null;
+    });
+    _tabController.animateTo(1);
+  }
+
+  Future<void> _deleteRule(int index) async {
+    setState(() {
+      _rules.removeAt(index);
+      if (_rules.isEmpty) {
+        _selectedRuleIndex = null;
+        _editorController.clear();
+      } else if (_selectedRuleIndex != null) {
+        if (_selectedRuleIndex! >= _rules.length) {
+          _selectedRuleIndex = _rules.length - 1;
+        }
+        _editorController.text = const JsonEncoder.withIndent('  ').convert(_rules[_selectedRuleIndex!]);
+      }
+    });
+    await _saveAllRules();
+  }
+
+  Widget _buildRulesTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        OutlinedButton.icon(
+          onPressed: _scanSampleAndGenerate,
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR Sample'),
+        ),
+        const SizedBox(height: 12),
+        if (_rules.isEmpty)
+          const Center(child: Text('No rules yet. Tap + to add a rule.'))
+        else
+          ..._rules.asMap().entries.map((entry) {
+            final index = entry.key;
+            final rule = entry.value;
+            final name = rule['name']?.toString() ?? 'Rule ${index + 1}';
+            return Card(
+              child: ListTile(
+                title: Text(name),
+                subtitle: Text('Tap to edit'),
+                onTap: () => _selectRule(index),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () => _deleteRule(index),
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
   Widget _buildEditorTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -192,14 +318,14 @@ extension on _GatewayRulesScreenState {
         ),
         const SizedBox(height: 12),
         ElevatedButton(
-          onPressed: _save,
-          child: const Text('Save Rules'),
+          onPressed: _saveCurrentRule,
+          child: const Text('Save Rule'),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: _scanSampleAndGenerate,
-          icon: const Icon(Icons.qr_code_scanner),
-          label: const Text('Scan QR Sample'),
+          onPressed: _saveAllRules,
+          icon: const Icon(Icons.save),
+          label: const Text('Save All Rules'),
         ),
       ],
     );
