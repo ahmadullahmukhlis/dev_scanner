@@ -460,7 +460,7 @@ extension on _GatewayRulesScreenState {
     if (_isUpdatingFromBuilder) return;
     if (_selectedRuleIndex == null) return;
     _jsonSyncTimer?.cancel();
-    _jsonSyncTimer = Timer(const Duration(milliseconds: 400), () {
+    _jsonSyncTimer = Timer(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       final raw = _editorController.text.trim();
       if (raw.isEmpty) {
@@ -474,7 +474,9 @@ extension on _GatewayRulesScreenState {
           return;
         }
         _loadBuilderFromRule(decoded);
-        setState(() => _error = null);
+        if (mounted) {
+          setState(() => _error = null);
+        }
       } catch (_) {
         setState(() => _error = 'Invalid JSON');
       }
@@ -526,19 +528,20 @@ extension on _GatewayRulesScreenState {
         ..._builderConditions.asMap().entries.map((entry) {
           final index = entry.key;
           final row = entry.value;
-          return Row(
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                flex: 3,
+              SizedBox(
+                width: 140,
                 child: TextFormField(
                   initialValue: row.field,
                   decoration: const InputDecoration(labelText: 'Field'),
                   onChanged: (value) => row.field = value,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
+              SizedBox(
+                width: 140,
                 child: DropdownButtonFormField<String>(
                   value: row.operatorType,
                   decoration: const InputDecoration(labelText: 'Op'),
@@ -560,9 +563,8 @@ extension on _GatewayRulesScreenState {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 3,
+              SizedBox(
+                width: 160,
                 child: TextFormField(
                   initialValue: row.value,
                   decoration: const InputDecoration(labelText: 'Value'),
@@ -673,17 +675,20 @@ extension on _GatewayRulesScreenState {
         ...rows.asMap().entries.map((entry) {
           final index = entry.key;
           final row = entry.value;
-          return Row(
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
+              SizedBox(
+                width: 160,
                 child: TextFormField(
                   initialValue: row.keyText,
                   decoration: const InputDecoration(labelText: 'Key'),
                   onChanged: (value) => row.keyText = value,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
+              SizedBox(
+                width: 180,
                 child: TextFormField(
                   initialValue: row.valueText,
                   decoration: const InputDecoration(labelText: 'Value'),
