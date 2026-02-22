@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'scan_result_screen.dart';
+import 'create_qr_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'saved_screen.dart';
@@ -48,6 +49,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
+    {'icon': Icons.qr_code_2, 'title': 'Create QR', 'page': 'create_qr'},
     {'icon': Icons.history, 'title': 'History', 'page': 'history'},
     {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
     {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
@@ -645,6 +647,13 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with Single
         context,
         MaterialPageRoute(
           builder: (context) => const SavedScreen(),
+        ),
+      );
+    } else if (page == 'create_qr') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CreateQrScreen(),
         ),
       );
     } else if (page == 'help') {
