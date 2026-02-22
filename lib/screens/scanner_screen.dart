@@ -29,7 +29,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   CameraFacingSetting? _lastCameraFacing;
   ScanSpeedSetting? _lastScanSpeed;
 
-  double zoomLevel = 1.0;
+  double zoomLevel = 0.0;
   final ImagePicker _imagePicker = ImagePicker();
   final DBHelper _dbHelper = DBHelper();
   bool _isProcessingScan = false;
@@ -433,7 +433,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             GestureDetector(
               onTap: () {
                 setState(() {
-                  zoomLevel = (zoomLevel - 0.5).clamp(1.0, 3.0);
+                  zoomLevel = (zoomLevel - 0.1).clamp(0.0, 1.0);
                   controller.setZoomScale(zoomLevel);
                 });
               },
@@ -443,10 +443,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             Expanded(
               child: Slider(
                 value: zoomLevel,
-                min: 1.0,
-                max: 3.0,
-                divisions: 4,
-                label: '${(((zoomLevel - 1.0) / 2.0) * 100).round()}%',
+                min: 0.0,
+                max: 1.0,
+                divisions: 10,
+                label: '${(zoomLevel * 100).round()}%',
                 activeColor: Colors.white,
                 inactiveColor: Colors.white.withOpacity(0.4),
                 onChanged: (value) {
@@ -459,14 +459,14 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              '${(((zoomLevel - 1.0) / 2.0) * 100).round()}%',
+              '${(zoomLevel * 100).round()}%',
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: () {
                 setState(() {
-                  zoomLevel = (zoomLevel + 0.5).clamp(1.0, 3.0);
+                  zoomLevel = (zoomLevel + 0.1).clamp(0.0, 1.0);
                   controller.setZoomScale(zoomLevel);
                 });
               },
