@@ -244,7 +244,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     '',
                     onTap: () => _showInfoDialog(
                       title: 'Privacy Policy',
-                      message: 'Privacy policy content is not available yet.',
+                      message:
+                          'Your data stays on your device.\n'
+                          'We do not collect or sell personal information.\n'
+                          'QR contents are processed locally.\n'
+                          'If you choose to open links, they are opened in your browser.\n'
+                          'Scan history is stored locally and can be cleared by you.',
                     ),
                   ),
                   _buildSettingsTile(
@@ -253,7 +258,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     '',
                     onTap: () => _showInfoDialog(
                       title: 'Terms of Service',
-                      message: 'Terms of service content is not available yet.',
+                      message:
+                          'This app is provided as-is without warranties.\n'
+                          'You are responsible for how you use scanned data.\n'
+                          'Do not scan or open links you do not trust.\n'
+                          'The app may change or be updated at any time.',
                     ),
                   ),
                 ],
