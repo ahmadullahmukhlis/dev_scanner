@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../utils/app_settings.dart';
 import '../utils/constants.dart';
 import '../widgets/common_app_bar.dart';
@@ -14,29 +13,11 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AppSettings _settings = AppSettings.instance;
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
-  void initState() {
-    super.initState();
-    _audioPlayer.setReleaseMode(ReleaseMode.stop);
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
   Future<void> _playTestSound() async {
     try {
-      if (_settings.soundType == SoundTypeSetting.custom) {
-        await _audioPlayer.stop();
-        await _audioPlayer.setVolume(_settings.soundVolume);
-        await _audioPlayer.play(AssetSource(_settings.soundAssetPath));
-      } else {
-        SystemSound.play(SystemSoundType.alert);
-      }
+      SystemSound.play(SystemSoundType.alert);
     } catch (_) {
       SystemSound.play(SystemSoundType.alert);
     }
@@ -115,42 +96,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: _settings.setSoundEnabled,
                   ),
                   _buildSettingsTile(
-                    Icons.music_note,
-                    'Sound Type',
-                    _settings.soundTypeLabel,
-                    onTap: () => _showSelectionDialog<SoundTypeSetting>(
-                      title: 'Sound Type',
-                      options: const [
-                        _SettingsOption(label: 'System', value: SoundTypeSetting.system),
-                        _SettingsOption(label: 'Custom', value: SoundTypeSetting.custom),
-                      ],
-                      current: _settings.soundType,
-                      onSelected: _settings.setSoundType,
-                    ),
-                  ),
-                  _buildSettingsTile(
-                    Icons.tune,
-                    'Sound Tone',
-                    _settings.soundAssetLabel,
-                    onTap: () => _showSelectionDialog<SoundAssetSetting>(
-                      title: 'Sound Tone',
-                      options: const [
-                        _SettingsOption(label: 'Beep', value: SoundAssetSetting.beep),
-                        _SettingsOption(label: 'Chirp', value: SoundAssetSetting.chirp),
-                        _SettingsOption(label: 'Tick', value: SoundAssetSetting.tick),
-                      ],
-                      current: _settings.soundAsset,
-                      onSelected: _settings.setSoundAsset,
-                    ),
-                  ),
-                  _buildSliderTile(
-                    icon: Icons.volume_down,
-                    title: 'Sound Volume',
-                    subtitle: _settings.soundVolumeLabel,
-                    value: _settings.soundVolume,
-                    onChanged: _settings.setSoundVolume,
-                  ),
-                  _buildSettingsTile(
                     Icons.play_arrow,
                     'Test Sound',
                     'Play the selected sound',
@@ -162,67 +107,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Open URLs immediately after scan',
                     value: _settings.autoOpenUrl,
                     onChanged: _settings.setAutoOpenUrl,
-                  ),
-                ],
-              ),
-              _buildSettingsSection(
-                'App Settings',
-                [
-                  _buildSettingsTile(
-                    Icons.language,
-                    'Language',
-                    _settings.language,
-                    onTap: () => _showSelectionDialog<String>(
-                      title: 'Language',
-                      options: const [
-                        _SettingsOption(label: 'English', value: 'English'),
-                        _SettingsOption(label: 'Spanish', value: 'Spanish'),
-                        _SettingsOption(label: 'French', value: 'French'),
-                      ],
-                      current: _settings.language,
-                      onSelected: _settings.setLanguage,
-                    ),
-                  ),
-                  _buildSettingsTile(
-                    Icons.dark_mode,
-                    'Theme',
-                    _settings.themeLabel,
-                    onTap: () => _showSelectionDialog<AppThemeSetting>(
-                      title: 'Theme',
-                      options: const [
-                        _SettingsOption(label: 'System', value: AppThemeSetting.system),
-                        _SettingsOption(label: 'Light', value: AppThemeSetting.light),
-                        _SettingsOption(label: 'Dark', value: AppThemeSetting.dark),
-                      ],
-                      current: _settings.theme,
-                      onSelected: _settings.setTheme,
-                    ),
-                  ),
-                  _buildSettingsTile(
-                    Icons.palette,
-                    'App Bar Color',
-                    _settings.appBarColorLabel,
-                    onTap: () => _showSelectionDialog<AppBarColorSetting>(
-                      title: 'App Bar Color',
-                      options: const [
-                        _SettingsOption(label: 'Blue', value: AppBarColorSetting.blue),
-                        _SettingsOption(label: 'Green', value: AppBarColorSetting.green),
-                        _SettingsOption(label: 'Orange', value: AppBarColorSetting.orange),
-                        _SettingsOption(label: 'Teal', value: AppBarColorSetting.teal),
-                        _SettingsOption(label: 'Red', value: AppBarColorSetting.red),
-                        _SettingsOption(label: 'Purple', value: AppBarColorSetting.purple),
-                        _SettingsOption(label: 'Black', value: AppBarColorSetting.black),
-                      ],
-                      current: _settings.appBarColorSetting,
-                      onSelected: _settings.setAppBarColor,
-                    ),
-                  ),
-                  _buildSwitchTile(
-                    Icons.notifications,
-                    'Notifications',
-                    'Enable notifications',
-                    value: _settings.notificationsEnabled,
-                    onChanged: _settings.setNotificationsEnabled,
                   ),
                 ],
               ),
@@ -244,7 +128,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     '',
                     onTap: () => _showInfoDialog(
                       title: 'Privacy Policy',
-                      message: 'Privacy policy content is not available yet.',
+                      message:
+                          'Your data stays on your device.\n'
+                          'We do not collect or sell personal information.\n'
+                          'QR contents are processed locally.\n'
+                          'If you choose to open links, they are opened in your browser.\n'
+                          'Scan history is stored locally and can be cleared by you.',
                     ),
                   ),
                   _buildSettingsTile(
@@ -253,7 +142,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     '',
                     onTap: () => _showInfoDialog(
                       title: 'Terms of Service',
-                      message: 'Terms of service content is not available yet.',
+                      message:
+                          'This app is provided as-is without warranties.\n'
+                          'You are responsible for how you use scanned data.\n'
+                          'Do not scan or open links you do not trust.\n'
+                          'The app may change or be updated at any time.',
                     ),
                   ),
                 ],
@@ -305,32 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSliderTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required double value,
-    required ValueChanged<double> onChanged,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.blue.shade700),
-      title: Text(title),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(subtitle),
-          Slider(
-            value: value,
-            min: 0.0,
-            max: 1.0,
-            divisions: 10,
-            label: subtitle,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   Future<void> _showSelectionDialog<T>({
     required String title,

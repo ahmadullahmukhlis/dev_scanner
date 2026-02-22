@@ -8,8 +8,6 @@ enum FlashSetting { off, on }
 enum ScanSpeedSetting { normal, noDuplicates, unrestricted }
 enum AppThemeSetting { system, light, dark }
 enum AppBarColorSetting { blue, green, orange, teal, red, purple, black }
-enum SoundTypeSetting { system, custom }
-enum SoundAssetSetting { beep, chirp, tick }
 
 class AppSettings extends ChangeNotifier {
   AppSettings._();
@@ -21,9 +19,6 @@ class AppSettings extends ChangeNotifier {
   static const String _keyScanSpeed = 'scan_speed';
   static const String _keyVibration = 'vibration_enabled';
   static const String _keySound = 'sound_enabled';
-  static const String _keySoundType = 'sound_type';
-  static const String _keySoundAsset = 'sound_asset';
-  static const String _keySoundVolume = 'sound_volume';
   static const String _keyAutoOpenUrl = 'auto_open_url';
   static const String _keyLanguage = 'language';
   static const String _keyTheme = 'theme';
@@ -42,9 +37,6 @@ class AppSettings extends ChangeNotifier {
   ScanSpeedSetting scanSpeed = ScanSpeedSetting.normal;
   bool vibrationEnabled = true;
   bool soundEnabled = true;
-  SoundTypeSetting soundType = SoundTypeSetting.system;
-  SoundAssetSetting soundAsset = SoundAssetSetting.beep;
-  double soundVolume = 0.7;
   bool autoOpenUrl = true;
   String language = 'English';
   AppThemeSetting theme = AppThemeSetting.system;
@@ -63,9 +55,6 @@ class AppSettings extends ChangeNotifier {
     scanSpeed = _readEnum(_keyScanSpeed, ScanSpeedSetting.values, ScanSpeedSetting.normal);
     vibrationEnabled = _prefs?.getBool(_keyVibration) ?? true;
     soundEnabled = _prefs?.getBool(_keySound) ?? true;
-    soundType = _readEnum(_keySoundType, SoundTypeSetting.values, SoundTypeSetting.system);
-    soundAsset = _readEnum(_keySoundAsset, SoundAssetSetting.values, SoundAssetSetting.beep);
-    soundVolume = _prefs?.getDouble(_keySoundVolume) ?? 0.7;
     autoOpenUrl = _prefs?.getBool(_keyAutoOpenUrl) ?? true;
     language = _prefs?.getString(_keyLanguage) ?? 'English';
     theme = _readEnum(_keyTheme, AppThemeSetting.values, AppThemeSetting.system);
@@ -118,23 +107,6 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setSoundType(SoundTypeSetting value) async {
-    soundType = value;
-    await _prefs?.setString(_keySoundType, describeEnum(value));
-    notifyListeners();
-  }
-
-  Future<void> setSoundAsset(SoundAssetSetting value) async {
-    soundAsset = value;
-    await _prefs?.setString(_keySoundAsset, describeEnum(value));
-    notifyListeners();
-  }
-
-  Future<void> setSoundVolume(double value) async {
-    soundVolume = value.clamp(0.0, 1.0);
-    await _prefs?.setDouble(_keySoundVolume, soundVolume);
-    notifyListeners();
-  }
 
   Future<void> setAutoOpenUrl(bool value) async {
     autoOpenUrl = value;
@@ -285,43 +257,6 @@ class AppSettings extends ChangeNotifier {
     }
   }
 
-  String get soundTypeLabel {
-    switch (soundType) {
-      case SoundTypeSetting.custom:
-        return 'Custom';
-      case SoundTypeSetting.system:
-      default:
-        return 'System';
-    }
-  }
-
-  String get soundAssetLabel {
-    switch (soundAsset) {
-      case SoundAssetSetting.chirp:
-        return 'Chirp';
-      case SoundAssetSetting.tick:
-        return 'Tick';
-      case SoundAssetSetting.beep:
-      default:
-        return 'Beep';
-    }
-  }
-
-  String get soundAssetPath {
-    switch (soundAsset) {
-      case SoundAssetSetting.chirp:
-        return 'sounds/scan_chirp.wav';
-      case SoundAssetSetting.tick:
-        return 'sounds/scan_tick.wav';
-      case SoundAssetSetting.beep:
-      default:
-        return 'sounds/scan_beep.wav';
-    }
-  }
-
-  String get soundVolumeLabel {
-    return '${(soundVolume * 100).round()}%';
-  }
 
   String get scanCooldownLabel {
     if (scanCooldownMs <= 0) return 'Off';
