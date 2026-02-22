@@ -12,7 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr/qr.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 
 import '../utils/constants.dart';
 import '../widgets/common_app_bar.dart';
@@ -121,26 +121,27 @@ class _CreateQrScreenState extends State<CreateQrScreen> {
     return file.path;
   }
 
-  Future<bool> _ensureStoragePermission() async {
-    if (!Platform.isAndroid) return true;
-    final status = await Permission.storage.request();
-    if (status.isGranted) return true;
-    final manage = await Permission.manageExternalStorage.request();
-    return manage.isGranted;
-  }
-
   Future<String?> _saveToDownloads(Uint8List bytes, String ext) async {
     if (!Platform.isAndroid) {
       return _saveBytes(bytes, ext);
     }
-    final hasPerm = await _ensureStoragePermission();
-    if (!hasPerm) return null;
-    final dir = Directory('/storage/emulated/0/Download');
-    if (!dir.existsSync()) return null;
-    final stamp = DateTime.now().millisecondsSinceEpoch;
-    final path = '${dir.path}/qr_$stamp.$ext';
-    await File(path).writeAsBytes(bytes, flush: true);
-    return path;
+    try {
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final tempPath = await _saveBytes(bytes, ext);
+      MediaStore.appFolder = 'DevScanner';
+      await MediaStore.ensureInitialized();
+      final store = MediaStore();
+      final info = await store.saveFile(
+        tempFilePath: tempPath,
+        dirType: DirType.download,
+        dirName: DirName.download,
+        relativePath: 'DevScanner',
+      );
+      return info?.uri?.toString() ?? tempPath;
+    } catch (_) {
+      // Fallback to app docs if MediaStore fails
+      return _saveBytes(bytes, ext);
+    }
   }
 
   Future<void> _savePng() async {
