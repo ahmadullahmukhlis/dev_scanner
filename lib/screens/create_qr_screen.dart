@@ -135,9 +135,13 @@ class _CreateQrScreenState extends State<CreateQrScreen> {
         tempFilePath: tempPath,
         dirType: DirType.download,
         dirName: DirName.download,
-        relativePath: 'DevScanner',
+        relativePath: FilePath.root,
       );
-      return info?.uri?.toString() ?? tempPath;
+      final fileName = Uri.parse(tempPath).pathSegments.last;
+      if (info != null) {
+        return 'Download/$fileName';
+      }
+      return tempPath;
     } catch (_) {
       // Fallback to app docs if MediaStore fails
       return _saveBytes(bytes, ext);
