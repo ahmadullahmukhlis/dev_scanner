@@ -366,6 +366,15 @@ class _CustomLogicScreenState extends State<CustomLogicScreen> with SingleTicker
     await _saveRules();
   }
 
+  void _openRuleInEditor(CustomLogicRule rule) {
+    final json = CustomLogicEngine.rulesToJson([rule]);
+    setState(() {
+      _editorController.text = json;
+      _editorError = null;
+    });
+    _tabController.animateTo(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -418,6 +427,8 @@ class _CustomLogicScreenState extends State<CustomLogicScreen> with SingleTicker
               title: Text(rule.name),
               subtitle: Text('${rule.condition.type} • ${rule.condition.value ?? ''}\nActions: $actionSummary'),
               isThreeLine: true,
+              onTap: () => _openRuleEditor(rule: rule, index: index),
+              onLongPress: () => _openRuleInEditor(rule),
               trailing: PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'edit') {

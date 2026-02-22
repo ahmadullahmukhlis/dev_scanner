@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'scan_result_screen.dart';
+import 'history_screen.dart';
+import 'settings_screen.dart';
+import 'saved_screen.dart';
+import 'help_screen.dart';
 import '../widgets/corner_marker.dart';
 import '../widgets/animated_scan_line.dart';
 import '../widgets/scanner_overlay_painter.dart';
@@ -14,6 +18,8 @@ import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/gateway_rules.dart';
+import '../widgets/common_app_bar.dart';
+import 'gateway_rules_screen.dart';
 import 'dart:convert';
 
 class BarcodeScannerScreen extends StatefulWidget {
@@ -23,13 +29,16 @@ class BarcodeScannerScreen extends StatefulWidget {
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
 }
 
-class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
+class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> with SingleTickerProviderStateMixin {
   late MobileScannerController controller;
   final AppSettings _settings = AppSettings.instance;
   CameraFacingSetting? _lastCameraFacing;
   ScanSpeedSetting? _lastScanSpeed;
 
+  bool isSidebarOpen = false;
   double zoomLevel = 0.0;
+  late AnimationController _sidebarController;
+  late Animation<double> _sidebarAnimation;
   final ImagePicker _imagePicker = ImagePicker();
   final DBHelper _dbHelper = DBHelper();
   bool _isProcessingScan = false;
@@ -37,10 +46,28 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   DateTime? _lastScanTime;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
+  final List<Map<String, dynamic>> menuItems = [
+    {'icon': Icons.qr_code_scanner, 'title': 'Scanner', 'page': 'scanner'},
+    {'icon': Icons.history, 'title': 'History', 'page': 'history'},
+    {'icon': Icons.bookmark, 'title': 'Saved', 'page': 'saved'},
+    {'icon': Icons.settings, 'title': 'Settings', 'page': 'settings'},
+    {'icon': Icons.rule, 'title': 'Custom Rules', 'page': 'custom_rules'},
+    {'icon': Icons.help, 'title': 'Help', 'page': 'help'},
+    {'icon': Icons.share, 'title': 'Share App', 'page': 'share'},
+  ];
+
   @override
   void initState() {
     super.initState();
     _initControllerFromSettings();
+    _sidebarController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _sidebarAnimation = CurvedAnimation(
+      parent: _sidebarController,
+      curve: Curves.easeInOut,
+    );
     _settings.addListener(_handleSettingsChanged);
     _audioPlayer.setReleaseMode(ReleaseMode.stop);
   }
@@ -48,6 +75,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   @override
   void dispose() {
     controller.dispose();
+    _sidebarController.dispose();
     _settings.removeListener(_handleSettingsChanged);
     _audioPlayer.dispose();
     super.dispose();
@@ -195,19 +223,29 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     }
   }
 
+  void _shareApp() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Share app dialog would open here')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppConstants.appName, style: const TextStyle(color: Colors.white)),
-        backgroundColor: _settings.appBarColor,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: CommonAppBar(
+        title: AppConstants.appName,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: toggleSidebar,
+        ),
       ),
       body: Stack(
         children: [
           _buildScanner(),
           _buildTopActions(),
           _buildZoomBar(),
+          if (isSidebarOpen) _buildSidebarOverlay(),
+          _buildSidebar(),
         ],
       ),
     );
@@ -478,6 +516,76 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     );
   }
 
+  Widget _buildSidebarOverlay() {
+    return GestureDetector(
+      onTap: toggleSidebar,
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return AnimatedBuilder(
+      animation: _sidebarAnimation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(
+            -MediaQuery.of(context).size.width * (1 - _sidebarAnimation.value),
+            0,
+          ),
+          child: child,
+        );
+      },
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.75,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 40),
+            _buildSidebarMenu(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarMenu() {
+    return Expanded(
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        itemCount: menuItems.length,
+        itemBuilder: (context, index) {
+          final item = menuItems[index];
+          return ListTile(
+            leading: Icon(
+              item['icon'],
+              color: index == 0 ? Colors.blue.shade700 : Colors.grey.shade600,
+            ),
+            title: Text(
+              item['title'],
+              style: TextStyle(
+                color: index == 0 ? Colors.blue.shade700 : Colors.black87,
+                fontWeight: index == 0 ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            trailing: item['page'] == 'share'
+                ? const Icon(Icons.open_in_new, size: 16, color: Colors.grey)
+                : null,
+            onTap: () => navigateTo(item['page']),
+          );
+        },
+      ),
+    );
+  }
+
   String _getCurrentDateTime() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -500,5 +608,61 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     _lastScannedValue = code;
     _lastScanTime = now;
     return false;
+  }
+
+  void toggleSidebar() {
+    setState(() {
+      isSidebarOpen = !isSidebarOpen;
+      if (isSidebarOpen) {
+        _sidebarController.forward();
+      } else {
+        _sidebarController.reverse();
+      }
+    });
+  }
+
+  void navigateTo(String page) {
+    toggleSidebar();
+
+    if (page == 'history') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HistoryScreen(),
+        ),
+      ).then((_) {
+        setState(() {});
+      });
+    } else if (page == 'settings') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsScreen(),
+        ),
+      );
+    } else if (page == 'saved') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SavedScreen(),
+        ),
+      );
+    } else if (page == 'help') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HelpScreen(),
+        ),
+      );
+    } else if (page == 'custom_rules') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const GatewayRulesScreen(),
+        ),
+      );
+    } else if (page == 'share') {
+      _shareApp();
+    }
   }
 }
