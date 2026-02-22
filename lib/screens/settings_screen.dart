@@ -166,67 +166,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               _buildSettingsSection(
-                'App Settings',
-                [
-                  _buildSettingsTile(
-                    Icons.language,
-                    'Language',
-                    _settings.language,
-                    onTap: () => _showSelectionDialog<String>(
-                      title: 'Language',
-                      options: const [
-                        _SettingsOption(label: 'English', value: 'English'),
-                        _SettingsOption(label: 'Spanish', value: 'Spanish'),
-                        _SettingsOption(label: 'French', value: 'French'),
-                      ],
-                      current: _settings.language,
-                      onSelected: _settings.setLanguage,
-                    ),
-                  ),
-                  _buildSettingsTile(
-                    Icons.dark_mode,
-                    'Theme',
-                    _settings.themeLabel,
-                    onTap: () => _showSelectionDialog<AppThemeSetting>(
-                      title: 'Theme',
-                      options: const [
-                        _SettingsOption(label: 'System', value: AppThemeSetting.system),
-                        _SettingsOption(label: 'Light', value: AppThemeSetting.light),
-                        _SettingsOption(label: 'Dark', value: AppThemeSetting.dark),
-                      ],
-                      current: _settings.theme,
-                      onSelected: _settings.setTheme,
-                    ),
-                  ),
-                  _buildSettingsTile(
-                    Icons.palette,
-                    'App Bar Color',
-                    _settings.appBarColorLabel,
-                    onTap: () => _showSelectionDialog<AppBarColorSetting>(
-                      title: 'App Bar Color',
-                      options: const [
-                        _SettingsOption(label: 'Blue', value: AppBarColorSetting.blue),
-                        _SettingsOption(label: 'Green', value: AppBarColorSetting.green),
-                        _SettingsOption(label: 'Orange', value: AppBarColorSetting.orange),
-                        _SettingsOption(label: 'Teal', value: AppBarColorSetting.teal),
-                        _SettingsOption(label: 'Red', value: AppBarColorSetting.red),
-                        _SettingsOption(label: 'Purple', value: AppBarColorSetting.purple),
-                        _SettingsOption(label: 'Black', value: AppBarColorSetting.black),
-                      ],
-                      current: _settings.appBarColorSetting,
-                      onSelected: _settings.setAppBarColor,
-                    ),
-                  ),
-                  _buildSwitchTile(
-                    Icons.notifications,
-                    'Notifications',
-                    'Enable notifications',
-                    value: _settings.notificationsEnabled,
-                    onChanged: _settings.setNotificationsEnabled,
-                  ),
-                ],
-              ),
-              _buildSettingsSection(
                 'About',
                 [
                   _buildSettingsTile(
