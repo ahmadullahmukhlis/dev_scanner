@@ -21,9 +21,9 @@ jobs:
           git config --global user.name "ahmadullahmukhlis"
           git config --global user.email "nasarimukhlis@gmail.com"
           
-          # Generate a random number between 1000 and 1200
+          # Generate a random number between 500 and 1200
           # Formula: (Random % (Max - Min + 1)) + Min
-          NUM_COMMITS=$(( ( RANDOM % 201 ) + 1000 ))
+          NUM_COMMITS=$(( ( RANDOM % 201 ) + 500 ))
           
           echo "Starting $NUM_COMMITS dynamic commits today..."
           
