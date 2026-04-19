@@ -3,7 +3,8 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '*/60 * * * *' # Attempts to run every 60 minutes (approx 24-60 times a day)
+    # Runs 6 times a day (every 4 hours)
+    - cron: '0 */4 * * *' 
   workflow_dispatch:
 
 jobs:
@@ -15,11 +16,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Run History and Daily Commits
+      - name: Run Daily and Previous Day Commits
         run: |
           git config --global user.name "ahmadullahmukhlis"
           git config --global user.email "nasarimukhlis@gmail.com"
 
+          # Function to generate commits for a specific date
           make_commits() {
             local target_date=$1
             local count=$2
@@ -28,45 +30,19 @@ jobs:
             
             for ((i=1; i<=count; i++))
             do
-              echo "Commit $i on $target_date - $(date)" >> history_log.txt
+              echo "Commit $i for $target_date - $(date)" >> history_log.txt
               git add history_log.txt
               git commit -m "Contribution $i for $target_date [skip ci]"
             done
           }
 
-          # 1. ONE-TIME BACKFILL (Oct 2022 - Jan 2026)
-          if [ ! -f ".backfill_done" ]; then
-            echo "Starting one-time historical backfill..."
-            start_date="2022-10-01"
-            end_date="2026-01-31"
-            current_loop_date="$start_date"
-            while [ "$current_loop_date" != "$(date -I -d "$end_date + 1 day")" ]; do
-              RANDOM_COUNT=$(( ( RANDOM % 5 ) + 1 ))
-              make_commits "$current_loop_date" "$RANDOM_COUNT"
-              current_loop_date=$(date -I -d "$current_loop_date + 1 day")
-            done
-            touch .backfill_done
-            git add .backfill_done
-            git commit -m "Historical backfill complete [skip ci]"
-          fi
+          # 1. Commit 75 times for Yesterday
+          YESTERDAY=$(date -I -d "1 day ago")
+          make_commits "$YESTERDAY" 75
 
-          # 2. SPECIAL THREE DAYS (300-400 commits)
-          # Only runs once per day (at hour 0) to avoid spamming 400 commits every hour
-          if [ "$(date +%H)" == "00" ]; then
-            for i in {1..3}; do
-              SPECIFIC_DATE=$(date -I -d "$i days ago")
-              EXTRA_COUNT=$(( ( RANDOM % 101 ) + 300 ))
-              make_commits "$SPECIFIC_DATE" "$EXTRA_COUNT"
-            done
-          fi
-
-          # 3. CURRENT HOURLY/DAILY COMMITS (20-600)
+          # 2. Commit 75 times for Today
           TODAY=$(date -I)
-          # Reduced range as requested: 20 to 600
-          DAILY_COUNT=$(( ( RANDOM % 581 ) + 20 ))
-          unset GIT_AUTHOR_DATE
-          unset GIT_COMMITTER_DATE
-          make_commits "$TODAY" "$DAILY_COUNT"
+          make_commits "$TODAY" 75
 
-          # 4. PUSH
-          git push
+          # Push the total 150 commits
+          git push origin main
