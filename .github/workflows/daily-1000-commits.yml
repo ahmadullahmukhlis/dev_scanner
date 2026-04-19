@@ -1,0 +1,37 @@
+name: Dynamic Daily Commits
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows you to start it manually for testing
+
+jobs:
+  make-commits:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Run Dynamic Commits
+        run: |
+          git config --global user.name "ahmadullahmukhlis"
+          git config --global user.email "nasarimukhlis@gmail.com"
+          
+          # Generate a random number between 1000 and 1200
+          # Formula: (Random % (Max - Min + 1)) + Min
+          NUM_COMMITS=$(( ( RANDOM % 201 ) + 1000 ))
+          
+          echo "Starting $NUM_COMMITS dynamic commits today..."
+          
+          for ((i=1; i<=NUM_COMMITS; i++))
+          do
+            echo "Dynamic Commit #$i on $(date)" >> commit_log.txt
+            git add commit_log.txt
+            git commit -m "Automated dynamic commit $i of $NUM_COMMITS [skip ci]"
+          done
+          
+          git push
