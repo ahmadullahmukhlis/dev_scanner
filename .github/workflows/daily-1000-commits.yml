@@ -1,11 +1,11 @@
-name: Ultimate Contribution Generator
+name: Dynamic Daily Commits
 on:
-  push:
-    branches: [ main ]
   schedule:
-    # Runs 6 times a day (every 4 hours)
-    - cron: '0 */4 * * *' 
-  workflow_dispatch:
+    - cron: "0 0 * * *" # Runs every day at midnight UTC
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows you to start it manually for testing
 
 jobs:
   make-commits:
@@ -16,33 +16,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Run Daily and Previous Day Commits
+      - name: Run Dynamic Commits
         run: |
           git config --global user.name "ahmadullahmukhlis"
           git config --global user.email "nasarimukhlis@gmail.com"
 
-          # Function to generate commits for a specific date
-          make_commits() {
-            local target_date=$1
-            local count=$2
-            export GIT_AUTHOR_DATE="$target_date 12:00:00"
-            export GIT_COMMITTER_DATE="$target_date 12:00:00"
-            
-            for ((i=1; i<=count; i++))
-            do
-              echo "Commit $i for $target_date - $(date)" >> history_log.txt
-              git add history_log.txt
-              git commit -m "Contribution $i for $target_date [skip ci]"
-            done
-          }
+          # Generate a random number between 400 and 600
+          # Formula: (Random % (Max - Min + 1)) + Min
+          NUM_COMMITS=$(( ( RANDOM % 30 ) + 60 ))
 
-          # 1. Commit 75 times for Yesterday
-          YESTERDAY=$(date -I -d "1 day ago")
-          make_commits "$YESTERDAY" 75
+          echo "Starting $NUM_COMMITS dynamic commits today..."
 
-          # 2. Commit 75 times for Today
-          TODAY=$(date -I)
-          make_commits "$TODAY" 75
+          for ((i=1; i<=NUM_COMMITS; i++))
+          do
+            echo "Dynamic Commit #$i on $(date)" >> commit_log.txt
+            git add commit_log.txt
+            git commit -m "Automated dynamic commit $i of $NUM_COMMITS [skip ci]"
+          done
 
-          # Push the total 150 commits
-          git push origin main
+          git push
