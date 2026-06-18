@@ -23,7 +23,7 @@ jobs:
 
           # Generate a random number between 400 and 600
           # Formula: (Random % (Max - Min + 1)) + Min
-          NUM_COMMITS=$(( ( RANDOM % 5 ) + 7))
+          NUM_COMMITS=$(( ( RANDOM % 5 ) + 2))
 
           echo "Starting $NUM_COMMITS dynamic commits today..."
 
